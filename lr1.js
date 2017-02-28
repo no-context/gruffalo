@@ -18,7 +18,7 @@ class Rule {
   }
 
   startItem(lookahead) {
-    if (this._items[lookahead]) { return this._items[lookahead] }
+    if (this._items[lookahead.join(', ')]) { return this._items[lookahead] }
     let symbols = this.symbols
     if (!symbols.length) {
       return this._items[lookahead] = new LR1(this, 0, lookahead)
@@ -56,10 +56,14 @@ class LR1 {
     this.lookahead = lookahead
   }
 
+  get isAccepting() {
+    return this.rule.isAccepting && this.lookahead == LR1.EOF
+  }
+
   toString() {
     let symbols = this.rule.symbols.slice()
     symbols.splice(this.dot, 0, '•')
-    let lookahead = this.lookahead === LR1.EOF ? '$' : this.lookahead
+    let lookahead = this.lookahead == LR1.EOF ? '$' : this.lookahead
     return this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + ' ;  ' + lookahead
   }
 }
@@ -122,8 +126,7 @@ class Grammar {
         }
       }
       for ( ; j < terminals.length; j++) {
-        result.push(terminals)
-
+        result.push(terminals[j])
       }
     }
     return result
@@ -171,7 +174,7 @@ class State {
     if (!(item instanceof LR1)) { throw new Error('not an LR1') }
     this.items.push(item)
     if (item.wants === undefined) {
-      if (item.rule.isAccepting) {
+      if (item.isAccepting) {
         this.accept = item
       } else {
         this.reductions.push(item)
@@ -229,7 +232,7 @@ function party(g) {
   accept.isAccepting = true
 
   let start = new State(g)
-  let startItem = accept.startItem(LR1.EOF)
+  let startItem = accept.startItem([LR1.EOF])
   start.addItem(startItem)
   statesByHash['' + startItem.id] = start
   start.index = 0
@@ -255,8 +258,7 @@ function party(g) {
   return states
 }
 
-function log(g) {
-  let states = party(g)
+function log(states) {
   let start = states[0]
 
   states.forEach(state => {
@@ -284,6 +286,7 @@ function log(g) {
 
 function compile(grammar) {
   let states = party(grammar)
+  log(states)
   let start = states[0]
 
   var source = ''
@@ -315,20 +318,23 @@ function compile(grammar) {
 
     if (state.reductions.length) {
       source += 'switch (nextToken) {\n'
-      for (var item of state.reductions) {
-        source += 'case ' + JSON.stringify(item.lookahead) + ':\n'
-        source += '// ' + item.toString() + ' -- reduce\n'
-        source += 'var children = []\n'
-        for (var i=item.rule.symbols.length; i--; ) {
-          source += 'state = stack.pop()\n'
+      for (let item of state.reductions) {
+        for (let lookahead of item.lookahead) {
+          let match = lookahead == LR1.EOF ? 'undefined' : JSON.stringify(lookahead)
+          source += 'case ' + match + ':\n'
+          source += '// ' + item.toString() + ' -- reduce\n'
+          source += 'var children = []\n'
+          for (var i=item.rule.symbols.length; i--; ) {
+            source += 'state = stack.pop()\n'
+          }
+          for (var i=item.rule.symbols.length; i--; ) {
+            source += 'children[' + i + '] = symbols.pop()\n'
+          }
+          source += 'symbols.push(children)\n'
+          source += 'reduce = ' + JSON.stringify(item.rule.target) + '\n'
+          source += 'console.log("reducing ' + item.rule.toString() + '")\n'
+          source += 'continue\n'
         }
-        for (var i=item.rule.symbols.length; i--; ) {
-          source += 'children[' + i + '] = symbols.pop()\n'
-        }
-        source += 'symbols.push(children)\n'
-        source += 'reduce = ' + JSON.stringify(item.rule.target) + '\n'
-        source += 'console.log("reducing ' + item.rule.toString() + '")\n'
-        source += 'continue\n'
       }
       source += 'default: console.log("reduce fail"); return state\n'
       source += '}\n'
@@ -384,7 +390,7 @@ console.log(source)
 
 var f = eval(source)
 
-let input = ['id', '+', '(', 'id', ')']
+let input = Array.from('baab')
 var index = 0
 function next() {
   return input[index++]
