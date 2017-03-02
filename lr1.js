@@ -246,7 +246,7 @@ class State {
   }
 }
 
-function party(g) {
+function generateStates(g) {
   let accept = new Rule('$acc', [g.start])
   accept.isAccepting = true
 
@@ -304,7 +304,7 @@ function log(states) {
 }
 
 function compile(grammar) {
-  let states = party(grammar)
+  let states = generateStates(grammar)
   log(states)
   let start = states[0]
 
@@ -319,7 +319,6 @@ function compile(grammar) {
   source += 'var count = 0\n'
   source += 'while (true) {\n'
   source += 'console.log(stack.join(" "), state, "--", reduce || token.type) //, symbols)\n'
-  //source += 'if (count++ > 10) break\n'
   source += 'switch (state) {\n'
 
   states.forEach(state => {
@@ -363,9 +362,6 @@ function compile(grammar) {
       source += 'switch (reduce || token.type) {\n'
       for (var symbol in state.transitions) {
         let next = state.transitions[symbol]
-        //if (set.length > 1) { throw 'shift-shift conflict?!' }
-        //console.log(set)
-        //let next = set[0]
         source += 'case ' + JSON.stringify(symbol) + ':\n'
         source += 'stack.push(state); state = ' + next.index + '\n'
         source += 'console.log("shift ' + symbol + '")\n'
@@ -377,9 +373,6 @@ function compile(grammar) {
         } else {
           source += 'reduce = null\n'
         }
-        // source += 'if (reduce) {\n' // TODO we can determine this statically from symbol
-        // source += '} else {\n'
-        // source += '}\n'
         source += 'continue\n'
       }
       source += 'default: console.log("fail:", reduce || token.type); return state\n' // TODO throw unexpected token
