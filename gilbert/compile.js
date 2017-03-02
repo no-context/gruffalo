@@ -31,7 +31,6 @@ function compile(grammar) {
     for (var i=rule.symbols.length; i--; ) {
       source += ' children[' + i + '] = NODES.pop()\n'
     }
-    // TODO call reduce processor
     source += ' NODES.push(children)\n'
     source += ' GOTO = ' + JSON.stringify(rule.target) + '\n'
     source += '}\n'
@@ -39,9 +38,6 @@ function compile(grammar) {
   source += '\n'
 
   states.forEach(state => {
-    // if (!Object.keys(state.transitions).length) {
-    //   source += 'var g' + state.index + ' = error.bind(null, ' + JSON.stringify('g' + state.index) + ')\n'
-    // } else {
     source += 'function g' + state.index + '() {\n'
     source += ' switch (GOTO) {\n'
     for (var symbol in state.transitions) {
