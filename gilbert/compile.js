@@ -55,22 +55,19 @@ function compile(grammar) {
     for (var symbol in state.transitions) {
       if (!grammar.isTerminal(symbol)) {
         let next = state.transitions[symbol]
-        source += '  case ' + str(symbol) + ': STACK.push(g' + next.index + '); IMMEDIATE = i' + next.index + '; return\n'
+        source += '  case ' + str(symbol) + ': p' + next.index + '(); return\n'
       }
     }
     source += '  default: error(' + str('g' + state.index) + ')\n'
     source += ' }\n'
-    // TODO signal error from inside goto()
     source += '}\n'
   })
   source += '\n'
 
   states.forEach(state => {
-    source += 'function s' + state.index + '() {\n'
+    source += 'function p' + state.index + '() {\n'
     source += ' STACK.push(g' + state.index + ')\n'
     source += ' IMMEDIATE = i' + state.index + '\n'
-    source += ' NODES.push(TOKEN)\n'
-    source += ' TOKEN = lex()\n'
     source += '}\n'
   })
 
@@ -82,17 +79,14 @@ function compile(grammar) {
     }
 
     source += ' switch (TOKEN.type) {\n'
-    if (state.reductions.length) {
-      for (let item of state.reductions) {
-        let lookahead = item.lookahead
-        let match = lookahead == LR1.EOF ? '"$"' : str(lookahead)
-        source += '  case ' + match + ': r' + item.rule.id + '(); return\n'
-      }
-    } else {
-      for (var symbol in state.transitions) {
-        let next = state.transitions[symbol]
-        source += '  case ' + str(symbol) + ': s' + next.index + '(); return\n'
-      }
+    for (let item of state.reductions) {
+      let lookahead = item.lookahead
+      let match = lookahead == LR1.EOF ? '"$"' : str(lookahead)
+      source += '  case ' + match + ': r' + item.rule.id + '(); return\n'
+    }
+    for (var symbol in state.transitions) {
+      let next = state.transitions[symbol]
+      source += '  case ' + str(symbol) + ': p' + next.index + '(); NODES.push(TOKEN); TOKEN = lex(); return\n'
     }
     source += '  default: error(' + state.index + ')\n'
     source += ' }\n'
@@ -106,6 +100,8 @@ function compile(grammar) {
   var NODES = []
   var STACK = [g0]
   var ACCEPT = false
+  var COLUMN = []
+  var NEXT = []
   while (IMMEDIATE) {
     // console.log(IMMEDIATE.name)
     IMMEDIATE()
