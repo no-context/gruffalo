@@ -240,47 +240,41 @@ const {
   compile,
 } = require('../gilbert')
 
-
-var bnf = {
-  "JSONText": [ "JSONValue" ],
-
-  "JSONString": [ "STRING" ],
-
-  "JSONNullLiteral": [ "NULL" ],
-
-  "JSONNumber": [ "NUMBER" ],
-
-  "JSONBooleanLiteral": [ "TRUE", "FALSE" ],
-
-  "JSONValue": [ "JSONNullLiteral",
-                 "JSONBooleanLiteral",
-                 "JSONString",
-                 "JSONNumber",
-                 "JSONObject",
-                 "JSONArray" ],
-
-  "JSONObject": [ "{ }",
-                  "{ JSONMemberList }" ],
-
-  "JSONMember": [ "JSONString : JSONValue" ],
-
-  "JSONMemberList": [ "JSONMember",
-                        "JSONMemberList , JSONMember" ],
-
-  "JSONArray": [ "[ ]",
-                 "[ JSONElementList ]" ],
-
-  "JSONElementList": [ "JSONValue",
-                       "JSONElementList , JSONValue" ]
-}
-
 let g = new Grammar({ start: 'JSONText' })
-for (var target in bnf) {
-  for (var line of bnf[target]) {
-    var symbols = line.split(/ /g)
-    g.add(new Rule(target, symbols))
-  }
+function r(target, symbols, process) {
+  g.add(new Rule(target, symbols, process))
 }
+r("JSONText", ["JSONValue"])
+
+r("JSONString", ["STRING"])
+
+r("JSONNullLiteral", ["NULL"])
+
+r("JSONNumber", ["NUMBER"])
+
+r("JSONBooleanLiteral", ["TRUE"])
+r("JSONBooleanLiteral", ["FALSE"])
+
+r("JSONValue", ["JSONNullLiteral"])
+r("JSONValue", ["JSONBooleanLiteral"])
+r("JSONValue", ["JSONString"])
+r("JSONValue", ["JSONNumber"])
+r("JSONValue", ["JSONObject"])
+r("JSONValue", ["JSONArray"])
+
+r("JSONObject", ["{", "}"])
+r("JSONObject", ["{", "JSONMemberList", "}"])
+
+r("JSONMember", ["JSONString", ":", "JSONValue"])
+
+r("JSONMemberList", ["JSONMember"])
+r("JSONMemberList", ["JSONMemberList", ",", "JSONMember"])
+
+r("JSONArray", ["[", "]"])
+r("JSONArray", ["[", "JSONElementList", "]"])
+
+r("JSONElementList", ["JSONValue"])
+r("JSONElementList", ["JSONElementList", ",", "JSONValue"])
 
 module.exports = {
   grammar: g,
