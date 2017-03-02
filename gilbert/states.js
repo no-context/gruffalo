@@ -121,7 +121,7 @@ function generateStates(g) {
   return states
 }
 
-function log(states) {
+function logStates(states) {
   let start = states[0]
 
   states.forEach(state => {
@@ -150,6 +150,7 @@ function log(states) {
 
 module.exports = {
   State,
+  logStates,
   generateStates,
 }
 
