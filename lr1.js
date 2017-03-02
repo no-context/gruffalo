@@ -220,8 +220,6 @@ class State {
         continue
       }
 
-      console.log(item.wants)
-
       //let lookahead = item.wantsLookahead(grammar)
       let after = item.rule.symbols.slice(item.dot + 1)
       let lookahead = grammar.firstTerminal(after.concat([item.lookahead]))
@@ -230,7 +228,6 @@ class State {
       if (!spawned) { spawned = predicted[item.wants] = {} }
 
       for (var key in lookahead) {
-        console.log(item.wants, key, Object.keys(spawned).length)
         if (!spawned[key]) {
           let newItems = spawned[key] = []
           for (let rule of (grammar.get(item.wants) || [])) {
@@ -240,23 +237,6 @@ class State {
           }
         }
       }
-
-      /*
-      if (spawned) {
-        for (let item of spawned) {
-          for (let key in lookahead) {
-            item.lookahead[key] = true
-          }
-        }
-      } else {
-        spawned = predicted[item.wants] = []
-        for (let rule of (grammar.get(item.wants) || [])) {
-          let item = rule.startItem(lookahead)
-          this.addItem(item)
-          spawned.push(item)
-        }
-      }
-      */
     }
   }
 
@@ -297,9 +277,9 @@ function generateStates(g) {
 
   let states = [start]
   for (var i = 0; i < states.length; i++) { // nb. expands during iteration
-    console.log(i)
+    // console.log(i)
     let state = states[i]
-    state.log()
+    // state.log()
 
     for (let symbol in state.wants) {
       let next = state.successor(symbol)
@@ -307,10 +287,10 @@ function generateStates(g) {
         next.index = states.length
         states.push(next)
       }
-      console.log(' * ', symbol, '->', next.index)
+      // console.log(' * ', symbol, '->', next.index)
     }
 
-    console.log()
+    // console.log()
   }
   return states
 }
@@ -343,7 +323,7 @@ function log(states) {
 
 function compile(grammar) {
   let states = generateStates(grammar)
-  log(states)
+  // log(states)
   let start = states[0]
 
   var source = ''
@@ -356,7 +336,7 @@ function compile(grammar) {
   source += 'var reduce = null\n'
   source += 'var count = 0\n'
   source += 'while (true) {\n'
-  source += 'console.log(stack.join(" "), state, "--", reduce || token.type) //, symbols)\n'
+  // source += 'console.log(stack.join(" "), state, "--", reduce || token.type) //, symbols)\n'
   source += 'switch (state) {\n'
 
   states.forEach(state => {
@@ -367,7 +347,7 @@ function compile(grammar) {
       let item = state.accept
       source += '// ' + item.toString() + '\n'
       source += 'if (token.type === "$") {\n'
-      source += 'console.log("accept ' + item.rule.toString() + '")\n'
+      // source += 'console.log("accept ' + item.rule.toString() + '")\n'
       source += 'return symbols // accept\n'
       source += '}\n'
     }
@@ -388,7 +368,7 @@ function compile(grammar) {
         }
         source += 'symbols.push(children)\n'
         source += 'reduce = ' + JSON.stringify(item.rule.target) + '\n'
-        source += 'console.log("reducing ' + item.rule.toString() + '")\n'
+        // source += 'console.log("reducing ' + item.rule.toString() + '")\n'
         source += 'continue\n'
       }
       source += 'default: console.log("reduce fail: did not expect " + JSON.stringify(token.type)); return state\n'
@@ -400,12 +380,12 @@ function compile(grammar) {
         let next = state.transitions[symbol]
         source += 'case ' + JSON.stringify(symbol) + ':\n'
         source += 'stack.push(state); state = ' + next.index + '\n'
-        source += 'console.log("shift ' + symbol + '")\n'
+        // source += 'console.log("shift ' + symbol + '")\n'
         if (grammar.isTerminal(symbol)) {
           source += 'symbols.push(token.value)\n'
           source += 'token = nextToken; '
           source += 'nextToken = lex(); '
-          source += 'console.log("read " + token.type)\n'
+          // source += 'console.log("read " + token.type + " `" + token.value + "`")\n'
         } else {
           source += 'reduce = null\n'
         }
@@ -464,8 +444,8 @@ for (var target in bnf) {
     g.add(new Rule(target, symbols))
   }
 }
-g.log()
-console.log()
+// g.log()
+// console.log()
 
 var statesByHash = {}
 
@@ -476,7 +456,9 @@ var f = eval(source)
 
 let { tokenizer } = require('./json.tokenizer')
 
-tokenizer.initString('{ "foo": 1 }')
+const fs = require('fs')
+var input = fs.readFileSync('../nearley/test/test2.json', 'utf-8')
+tokenizer.initString(input)
 
 console.log(pretty(f(tokenizer.getNextToken.bind(tokenizer))))
 
