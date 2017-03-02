@@ -70,8 +70,7 @@ function compile(grammar) {
     source += ' STACK.push(g' + state.index + ')\n'
     source += ' IMMEDIATE = i' + state.index + '\n'
     source += ' NODES.push(TOKEN)\n'
-    source += ' TOKEN = NEXT\n'
-    source += ' NEXT = lex()\n'
+    source += ' TOKEN = lex()\n'
     source += '}\n'
   })
 
@@ -82,31 +81,27 @@ function compile(grammar) {
       source += ' if (TOKEN.type === "$") { IMMEDIATE = null; return }\n'
     }
 
+    source += ' switch (TOKEN.type) {\n'
     if (state.reductions.length) {
-      source += ' switch (TOKEN.type) {\n'
       for (let item of state.reductions) {
         let lookahead = item.lookahead
         let match = lookahead == LR1.EOF ? '"$"' : str(lookahead)
         source += '  case ' + match + ': r' + item.rule.id + '(); return\n'
       }
-      source += '  default: error(' + state.index + ')\n'
-      source += ' }\n'
     } else {
-      source += ' switch (TOKEN.type) {\n'
       for (var symbol in state.transitions) {
         let next = state.transitions[symbol]
         source += '  case ' + str(symbol) + ': s' + next.index + '(); return\n'
       }
-      source += '  default: error(' + state.index + ')\n'
-      source += ' }\n'
     }
+    source += '  default: error(' + state.index + ')\n'
+    source += ' }\n'
     source += '}\n'
   })
-  
+
   source += `
   var TOKEN = lex()
   var GOTO
-  var NEXT = lex()
   var IMMEDIATE = i0
   var NODES = []
   var STACK = [g0]

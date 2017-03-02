@@ -91,6 +91,7 @@ class State {
 
 
 function generateStates(g) {
+  // TODO: $acc ignores this processor
   let accept = new Rule('$acc', [g.start], x => x)
   accept.isAccepting = true
 
