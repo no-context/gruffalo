@@ -18,7 +18,7 @@ class Rule {
   }
 
   startItem(lookahead) {
-    if (this._items[lookahead.join(', ')]) { return this._items[lookahead] }
+    if (this._items[lookahead]) { return this._items[lookahead] }
     let symbols = this.symbols
     if (!symbols.length) {
       return this._items[lookahead] = new LR1(this, 0, lookahead)
@@ -54,9 +54,7 @@ class LR1 {
     this.dot = dot
     this.advance = null // set by Rule
     this.lookahead = lookahead
-    lookahead.forEach(x => {
-      if (typeof x !== 'string') { throw new Error(JSON.stringify(x)) }
-    })
+    if (typeof lookahead !== 'string') { throw new Error(JSON.stringify(lookahead)) }
   }
 
   get isAccepting() {
@@ -66,8 +64,24 @@ class LR1 {
   toString() {
     let symbols = this.rule.symbols.slice()
     symbols.splice(this.dot, 0, '•')
-    let lookahead = this.lookahead == LR1.EOF ? '$' : this.lookahead
-    return this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + ' :: ' + lookahead
+    let lookahead = []
+    for (var key in this.lookahead) {
+      lookahead.push(key === LR1.EOF ? '$' : key)
+    }
+    return this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + ' :: ' + lookahead.join(', ')
+  }
+
+  wantsLookahead(grammar) {
+    if (this._wlh) return this._wlh
+    let after = this.rule.symbols.slice(this.dot + 1)
+    let out = {}
+    for (var terminal in this.lookahead) {
+      let terminals = grammar.firstTerminal(after.concat(terminal))
+      for (var key in terminals) {
+        out[key] = true
+      }
+    }
+    return this._wlh = out
   }
 }
 LR1.highestId = 0
@@ -79,6 +93,9 @@ class Grammar {
     this.ruleSets = {} // rules by target
     this.start = options.start
     this.highestPriority = 0
+
+    this._listFirst = {}
+    this._symbolFirst = {}
   }
 
   add(rule) {
@@ -108,60 +125,57 @@ class Grammar {
     return !this.ruleSets[sym]
   }
 
-  // TODO memoize
-  firstTerminalFor(symbol) {
-    let rules = this.ruleSets[symbol]
-    if (!rules) { // terminal
-      console.log(symbol)
-      return [symbol]
+  firstTerminalFor(symbol, stack) {
+    if (this._symbolFirst[symbol]) {
+      return this._symbolFirst[symbol]
     }
 
-    let result = []
+    let rules = this.ruleSets[symbol]
+    if (!rules) { // terminal
+      return { [symbol]: true }
+    }
+
+    stack = stack || {}
+    if (stack[symbol]) {
+      return {}
+    }
+    stack[symbol] = true
+
+    let result = {}
     var hasNull = false
     for (var i = 0; i < rules.length; i++) {
       let symbols = rules[i].symbols
-      let terminals = this.firstTerminal(symbols)
-      var j = 0
-      if (terminals[0] === null) {
-        j++
-        if (!hasNull) {
-          result = [null].concat(result)
-          hasNull = true
-        }
-      }
-      for ( ; j < terminals.length; j++) {
-        if (typeof terminals[j] !== 'string') { throw new Error(JSON.stringify(terminals[j])) }
-        result.push(terminals[j])
+      let terminals = this.firstTerminal(symbols, stack)
+      for (var key in terminals) {
+        result[key] = true
       }
     }
-    console.log(JSON.stringify(result))
-    return result
+
+    delete stack[symbol]
+    return this._symbolFirst[symbol] = result
   }
 
-  firstTerminal(symbols) {
+  firstTerminal(symbols, stack) {
     if (symbols.length === 0) {
-      return null
+      return { '$null': true }
     }
 
-    let result = []
-    for (var i = 0; i < symbols.length; i++) {
-      if (typeof symbols[i] !== 'string') { throw new Error(JSON.stringify(symbols[i])) }
-      let terminals = this.firstTerminalFor(symbols[i])
-      if (terminals[0] === null) {
-        if (result.length === 0) { result.push(null) }
-        for (var j = 1; j < terminals.length; j++) {
-          if (typeof terminals[j] !== 'string') { throw new Error(JSON.stringify(terminals[j])) }
-          result.push(terminals[j])
-        }
-        continue
-      }
-      for (var j = 0; j < terminals.length; j++) {
-        if (typeof terminals[j] !== 'string') { throw new Error(JSON.stringify(terminals[j])) }
-        result.push(terminals[j])
-      }
-      break
+    let hash = symbols.join(', ')
+    if (this._listFirst[hash]) {
+      return this._listFirst[hash]
     }
-    return result
+
+    let result = {}
+    for (var i = 0; i < symbols.length; i++) {
+      let terminals = this.firstTerminalFor(symbols[i], stack)
+      for (var key in terminals) {
+        result[key] = true
+      }
+      if (!terminals['$null']) {
+        break
+      }
+    }
+    return this._listFirst[hash] = result
   }
 }
 
@@ -198,27 +212,51 @@ class State {
   // add closure items
   process() {
     let grammar = this.grammar
+    let items = this.items
     let predicted = {}
-    for (var i = 0; i < this.items.length; i++) { // nb. expands during iteration
-      let item = this.items[i]
-      if (item.wants !== undefined && !predicted[item.wants]) {
-        predicted[item.wants] = true
-        for (let rule of (grammar.get(item.wants) || [])) {
-          let after = item.rule.symbols.slice(item.dot + 1)
+    for (var i = 0; i < items.length; i++) { // nb. expands during iteration
+      let item = items[i]
+      if (item.wants === undefined) {
+        continue
+      }
 
-          let lookahead = item.lookahead
-          let out = []
-          for (var i = lookahead.length; i--; ) {
-            let terminal = lookahead[i]
-            let terminals = grammar.firstTerminal(after.concat([terminal]))
-            for (var j = terminals.length; j--; ) {
-              out.push(terminals[j])
-            }
+      console.log(item.wants)
+
+      //let lookahead = item.wantsLookahead(grammar)
+      let after = item.rule.symbols.slice(item.dot + 1)
+      let lookahead = grammar.firstTerminal(after.concat([item.lookahead]))
+
+      var spawned = predicted[item.wants]
+      if (!spawned) { spawned = predicted[item.wants] = {} }
+
+      for (var key in lookahead) {
+        console.log(item.wants, key, Object.keys(spawned).length)
+        if (!spawned[key]) {
+          let newItems = spawned[key] = []
+          for (let rule of (grammar.get(item.wants) || [])) {
+            let pred = rule.startItem(key)
+            this.addItem(pred)
+            newItems.push(pred)
           }
-
-          this.addItem(rule.startItem(out))
         }
       }
+
+      /*
+      if (spawned) {
+        for (let item of spawned) {
+          for (let key in lookahead) {
+            item.lookahead[key] = true
+          }
+        }
+      } else {
+        spawned = predicted[item.wants] = []
+        for (let rule of (grammar.get(item.wants) || [])) {
+          let item = rule.startItem(lookahead)
+          this.addItem(item)
+          spawned.push(item)
+        }
+      }
+      */
     }
   }
 
@@ -251,7 +289,7 @@ function generateStates(g) {
   accept.isAccepting = true
 
   let start = new State(g)
-  let startItem = accept.startItem([LR1.EOF])
+  let startItem = accept.startItem(LR1.EOF)
   start.addItem(startItem)
   statesByHash['' + startItem.id] = start
   start.index = 0
@@ -337,23 +375,21 @@ function compile(grammar) {
     if (state.reductions.length) {
       source += 'switch (token.type) {\n'
       for (let item of state.reductions) {
-        for (let lookahead of item.lookahead) {
-          if (typeof lookahead !== 'string') { throw new Error(JSON.stringify(lookahead)) }
-          let match = lookahead == LR1.EOF ? '"$"' : JSON.stringify(lookahead)
-          source += 'case ' + match + ':\n'
-          source += '// ' + item.toString() + ' -- reduce\n'
-          source += 'var children = []\n'
-          for (var i=item.rule.symbols.length; i--; ) {
-            source += 'state = stack.pop()\n'
-          }
-          for (var i=item.rule.symbols.length; i--; ) {
-            source += 'children[' + i + '] = symbols.pop()\n'
-          }
-          source += 'symbols.push(children)\n'
-          source += 'reduce = ' + JSON.stringify(item.rule.target) + '\n'
-          source += 'console.log("reducing ' + item.rule.toString() + '")\n'
-          source += 'continue\n'
+        let lookahead = item.lookahead
+        let match = lookahead == LR1.EOF ? '"$"' : JSON.stringify(lookahead)
+        source += 'case ' + match + ':\n'
+        source += '// ' + item.toString() + ' -- reduce\n'
+        source += 'var children = []\n'
+        for (var i=item.rule.symbols.length; i--; ) {
+          source += 'state = stack.pop()\n'
         }
+        for (var i=item.rule.symbols.length; i--; ) {
+          source += 'children[' + i + '] = symbols.pop()\n'
+        }
+        source += 'symbols.push(children)\n'
+        source += 'reduce = ' + JSON.stringify(item.rule.target) + '\n'
+        source += 'console.log("reducing ' + item.rule.toString() + '")\n'
+        source += 'continue\n'
       }
       source += 'default: console.log("reduce fail: did not expect " + JSON.stringify(token.type)); return state\n'
       source += '}\n'
@@ -434,19 +470,15 @@ console.log()
 var statesByHash = {}
 
 var source = compile(g)
-console.log(source)
+//console.log(source)
 
 var f = eval(source)
-
-let input = Array.from('baab')
-var index = 0
 
 let { tokenizer } = require('./json.tokenizer')
 
 tokenizer.initString('{ "foo": 1 }')
 
 console.log(pretty(f(tokenizer.getNextToken.bind(tokenizer))))
-console.log(index)
 
 function pretty(s) {
   if (s && s instanceof Array) {
