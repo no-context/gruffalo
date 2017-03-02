@@ -62,11 +62,8 @@ class LR1 {
   toString() {
     let symbols = this.rule.symbols.slice()
     symbols.splice(this.dot, 0, '•')
-    let lookahead = []
-    for (var key in this.lookahead) {
-      lookahead.push(key === LR1.EOF ? '$' : key)
-    }
-    return this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + ' :: ' + lookahead.join(', ')
+    let lookahead = this.lookahead === LR1.EOF ? '$' : this.lookahead
+    return this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + ' :: ' + lookahead
   }
 
   wantsLookahead(grammar) {
