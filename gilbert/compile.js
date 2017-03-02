@@ -16,13 +16,11 @@ function compile(grammar) {
   let states = generateStates(grammar)
   let start = states[0]
 
-  var source = ''
-  source += '(function(ctx) {\n'
-  source += 'return (function (lex) {\n'
-  source += '\n'
+  var source = `(function(ctx) {
+  return (function (lex) {
 
-  source += 'function error(id) { throw new Error(id); }\n'
-  source += '\n'
+  function error(id) { throw new Error(id); }
+  \n`
 
   for (var j = 0; j < grammar.rules.length; j++) {
     let rule = grammar.rules[j]
@@ -46,8 +44,6 @@ function compile(grammar) {
       source += ' var node = [' + children.join(', ') + ']\n'
     }
     source += ' NODES.push(node)\n'
-    // source += ' console.log(' + str(rule.build.name + ' =>') + ' + JSON.stringify(node))\n'
-
     source += ' GOTO = ' + str(rule.target) + '\n'
     source += '}\n'
   }
@@ -106,23 +102,25 @@ function compile(grammar) {
     }
     source += '}\n'
   })
-  source += '\n'
   
-  source += 'var TOKEN = lex()\n'
-  source += 'var GOTO\n'
-  source += 'var NEXT = lex()\n'
-  source += 'var IMMEDIATE = i0\n'
-  source += 'var NODES = []\n'
-  source += 'var STACK = [g0]\n'
-  source += 'var ACCEPT = false\n'
-  source += 'while (IMMEDIATE) {\n'
-  //source += 'console.log(IMMEDIATE.name)\n'
-  source += 'IMMEDIATE()\n'
-  source += '}\n'
-  source += 'return NODES[0]\n'
-  source += '})'
+  source += `
+  var TOKEN = lex()
+  var GOTO
+  var NEXT = lex()
+  var IMMEDIATE = i0
+  var NODES = []
+  var STACK = [g0]
+  var ACCEPT = false
+  while (IMMEDIATE) {
+    // console.log(IMMEDIATE.name)
+    IMMEDIATE()
+  }
+  return NODES[0]
+  \n`
+
+  source += '})\n'
   source += '}())'
-  // console.log(source)
+
   return source
 }
 
