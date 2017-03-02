@@ -91,7 +91,7 @@ class State {
 
 
 function generateStates(g) {
-  let accept = new Rule('$acc', [g.start])
+  let accept = new Rule('$acc', [g.start], x => x)
   accept.isAccepting = true
 
   let start = new State(g)

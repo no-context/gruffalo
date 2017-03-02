@@ -240,41 +240,57 @@ const {
   compile,
 } = require('../gilbert')
 
-let g = new Grammar({ start: 'JSONText' })
-function r(target, symbols, process) {
-  g.add(new Rule(target, symbols, process))
+function id(x) {
+  return x
 }
-r("JSONText", ["JSONValue"])
+function string(x) {
+  return JSON.parse(x.value)
+}
+function number(x) {
+  return +x.value
+}
 
-r("JSONString", ["STRING"])
+let g = new Grammar({ start: 'JSONText' })
+function r(target, symbols, build) {
+  g.add(new Rule(target, symbols, build))
+}
 
-r("JSONNullLiteral", ["NULL"])
+r("JSONText", ["JSONValue"], id)
 
-r("JSONNumber", ["NUMBER"])
+r("JSONString", ["STRING"], string)
 
-r("JSONBooleanLiteral", ["TRUE"])
-r("JSONBooleanLiteral", ["FALSE"])
+r("JSONNullLiteral", ["NULL"], () => null)
 
-r("JSONValue", ["JSONNullLiteral"])
-r("JSONValue", ["JSONBooleanLiteral"])
-r("JSONValue", ["JSONString"])
-r("JSONValue", ["JSONNumber"])
-r("JSONValue", ["JSONObject"])
-r("JSONValue", ["JSONArray"])
+r("JSONNumber", ["NUMBER"], number)
 
-r("JSONObject", ["{", "}"])
-r("JSONObject", ["{", "JSONMemberList", "}"])
+r("JSONBooleanLiteral", ["TRUE"], () => true)
+r("JSONBooleanLiteral", ["FALSE"], () => false)
 
-r("JSONMember", ["JSONString", ":", "JSONValue"])
+r("JSONValue", ["JSONNullLiteral"], id)
+r("JSONValue", ["JSONBooleanLiteral"], id)
+r("JSONValue", ["JSONString"], id)
+r("JSONValue", ["JSONNumber"], id)
+r("JSONValue", ["JSONObject"], id)
+r("JSONValue", ["JSONArray"], id)
 
-r("JSONMemberList", ["JSONMember"])
-r("JSONMemberList", ["JSONMemberList", ",", "JSONMember"])
+r("JSONObject", ["{", "}"], () => ({}))
+r("JSONObject", ["{", "JSONMemberList", "}"], (_, dict, _2) => dict)
 
-r("JSONArray", ["[", "]"])
-r("JSONArray", ["[", "JSONElementList", "]"])
+r("JSONMember", ["JSONString", ":", "JSONValue"], (key, _, value) => ({ key, value }))
+r("JSONMemberList", ["JSONMember"], item => ({ [item.key]: item.value }))
+r("JSONMemberList", ["JSONMemberList", ",", "JSONMember"], (dict, _, item) => {
+  dict[item.key] = item.value
+  return dict
+})
 
-r("JSONElementList", ["JSONValue"])
-r("JSONElementList", ["JSONElementList", ",", "JSONValue"])
+r("JSONArray", ["[", "]"], () => [])
+r("JSONArray", ["[", "JSONElementList", "]"], (_, a, _2) => a)
+
+r("JSONElementList", ["JSONValue"], value => [value])
+r("JSONElementList", ["JSONElementList", ",", "JSONValue"], (array, _, value) => {
+  array.push(value)
+  return array
+})
 
 module.exports = {
   grammar: g,

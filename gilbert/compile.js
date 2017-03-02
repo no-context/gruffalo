@@ -8,13 +8,17 @@ const {
   State,
 } = require('./states')
 
+function str(x) {
+  return JSON.stringify(x)
+}
 
 function compile(grammar) {
   let states = generateStates(grammar)
   let start = states[0]
 
   var source = ''
-  source += '(function (lex) {\n'
+  source += '(function(ctx) {\n'
+  source += 'return (function (lex) {\n'
   source += '\n'
 
   source += 'function error(id) { throw new Error(id); }\n'
@@ -23,16 +27,28 @@ function compile(grammar) {
   for (var j = 0; j < grammar.rules.length; j++) {
     let rule = grammar.rules[j]
     source += 'function r' + rule.id + '() {\n'
-    source += ' var children = []\n'
     for (var i=rule.symbols.length; i--; ) {
       source += ' STACK.pop()\n'
     }
     source += ' IMMEDIATE = STACK[STACK.length - 1]\n'
-    for (var i=rule.symbols.length; i--; ) {
-      source += ' children[' + i + '] = NODES.pop()\n'
+
+    for (var i = rule.symbols.length; i--; ) {
+      source += ' var c' + i + ' = NODES.pop()\n'
     }
-    source += ' NODES.push(children)\n'
-    source += ' GOTO = ' + JSON.stringify(rule.target) + '\n'
+    var children = []
+    for (var i = 0; i < rule.symbols.length; i++) {
+      children.push('c' + i)
+    }
+    if (typeof rule.build === 'function') {
+      var build = rule.build.source ? rule.build.source : '' + rule.build
+      source += ' var node = (' + build + ')(' + children.join(', ') + ')\n'
+    } else {
+      source += ' var node = [' + children.join(', ') + ']\n'
+    }
+    source += ' NODES.push(node)\n'
+    // source += ' console.log(' + str(rule.build.name + ' =>') + ' + JSON.stringify(node))\n'
+
+    source += ' GOTO = ' + str(rule.target) + '\n'
     source += '}\n'
   }
   source += '\n'
@@ -43,10 +59,10 @@ function compile(grammar) {
     for (var symbol in state.transitions) {
       if (!grammar.isTerminal(symbol)) {
         let next = state.transitions[symbol]
-        source += '  case ' + JSON.stringify(symbol) + ': STACK.push(g' + next.index + '); IMMEDIATE = i' + next.index + '; return\n'
+        source += '  case ' + str(symbol) + ': STACK.push(g' + next.index + '); IMMEDIATE = i' + next.index + '; return\n'
       }
     }
-    source += '  default: error(' + JSON.stringify('g' + state.index) + ')\n'
+    source += '  default: error(' + str('g' + state.index) + ')\n'
     source += ' }\n'
     // TODO signal error from inside goto()
     source += '}\n'
@@ -57,7 +73,7 @@ function compile(grammar) {
     source += 'function s' + state.index + '() {\n'
     source += ' STACK.push(g' + state.index + ')\n'
     source += ' IMMEDIATE = i' + state.index + '\n'
-    source += ' NODES.push(TOKEN.value)\n'
+    source += ' NODES.push(TOKEN)\n'
     source += ' TOKEN = NEXT\n'
     source += ' NEXT = lex()\n'
     source += '}\n'
@@ -74,7 +90,7 @@ function compile(grammar) {
       source += ' switch (TOKEN.type) {\n'
       for (let item of state.reductions) {
         let lookahead = item.lookahead
-        let match = lookahead == LR1.EOF ? '"$"' : JSON.stringify(lookahead)
+        let match = lookahead == LR1.EOF ? '"$"' : str(lookahead)
         source += '  case ' + match + ': r' + item.rule.id + '(); return\n'
       }
       source += '  default: error(' + state.index + ')\n'
@@ -83,7 +99,7 @@ function compile(grammar) {
       source += ' switch (TOKEN.type) {\n'
       for (var symbol in state.transitions) {
         let next = state.transitions[symbol]
-        source += '  case ' + JSON.stringify(symbol) + ': s' + next.index + '(); return\n'
+        source += '  case ' + str(symbol) + ': s' + next.index + '(); return\n'
       }
       source += '  default: error(' + state.index + ')\n'
       source += ' }\n'
@@ -103,8 +119,9 @@ function compile(grammar) {
   //source += 'console.log(IMMEDIATE.name)\n'
   source += 'IMMEDIATE()\n'
   source += '}\n'
-  source += 'return NODES\n'
+  source += 'return NODES[0]\n'
   source += '})'
+  source += '}())'
   // console.log(source)
   return source
 }
