@@ -7,9 +7,13 @@
   "author": "Tim Radvan <tim@tjvr.org>",
   "license": "BSD-3-Clause",
   "scripts": {
-      "test": "jest"
+    "test": "jest",
+    "benchmark": "node test/benchmark.js"
   },
   "devDependencies": {
-    "jest": "^19.0.2"
-  }
+    "benchmark": "^2.1.3",
+    "jest": "^19.0.2",
+    "nearley": "^2.7.14"
+  },
+  "dependencies": {}
 }
