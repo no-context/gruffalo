@@ -18,12 +18,62 @@ function compile(grammar) {
   source += 'var token = lex()\n'
   source += 'var nextToken = lex()\n'
   source += 'var state = 0\n'
-  source += 'var symbols = []\n'
+  source += 'var nodes = []\n'
   source += 'var stack = []\n'
-  source += 'var reduce = null\n'
   source += 'var count = 0\n'
+  source += '\n'
+
+  for (var j = 0; j < grammar.rules.length; j++) {
+    let rule = grammar.rules[j]
+    source += 'function r' + rule.id + '() {\n'
+    source += 'var children = []\n'
+    for (var i=rule.symbols.length; i--; ) {
+      source += 'state = stack.pop()\n'
+    }
+    for (var i=rule.symbols.length; i--; ) {
+      source += 'children[' + i + '] = nodes.pop()\n'
+    }
+    // TODO call reduce processor
+    source += 'nodes.push(children)\n'
+    source += 'go(' + JSON.stringify(rule.target) + ')\n'
+    source += '}\n'
+  }
+  source += '\n'
+
+  source += 'function go(symbol) {\n'
+  source += 'switch (state) {\n'
+  states.forEach(state => {
+    if (!state.reductions.length) {
+      source += 'case ' + state.index + ':\n'
+      source += 'switch (symbol) {\n'
+      for (var symbol in state.transitions) {
+        if (!grammar.isTerminal(symbol)) {
+          let next = state.transitions[symbol]
+          source += 'case ' + JSON.stringify(symbol) + ': '
+          source += 'stack.push(state); state = ' + next.index + '; return\n'
+        }
+      }
+      source += '}'
+    }
+  })
+  source += '}'
+  source += 'console.log("goto fail: " + symbol)\n'
+  // TODO signal error from inside goto()
+  source += '}'
+  source += '\n'
+
+  states.forEach(state => {
+    source += 'function s' + state.index + '() {\n'
+    source += 'stack.push(state)\n'
+    source += 'state = ' + state.index + '\n'
+    source += 'nodes.push(token.value)\n'
+    source += 'token = nextToken\n'
+    source += 'nextToken = lex()\n'
+    source += '}\n'
+
+  })
+
   source += 'while (true) {\n'
-  // source += 'console.log(stack.join(" "), state, "--", reduce || token.type) //, symbols)\n'
   source += 'switch (state) {\n'
 
   states.forEach(state => {
@@ -31,12 +81,7 @@ function compile(grammar) {
     source += 'case ' + state.index + ':\n'
 
     if (state.accept) {
-      let item = state.accept
-      source += '// ' + item.toString() + '\n'
-      source += 'if (token.type === "$") {\n'
-      // source += 'console.log("accept ' + item.rule.toString() + '")\n'
-      source += 'return symbols // accept\n'
-      source += '}\n'
+      source += 'if (token.type === "$") { return nodes }\n'
     }
 
     if (state.reductions.length) {
@@ -44,41 +89,18 @@ function compile(grammar) {
       for (let item of state.reductions) {
         let lookahead = item.lookahead
         let match = lookahead == LR1.EOF ? '"$"' : JSON.stringify(lookahead)
-        source += 'case ' + match + ':\n'
-        source += '// ' + item.toString() + ' -- reduce\n'
-        source += 'var children = []\n'
-        for (var i=item.rule.symbols.length; i--; ) {
-          source += 'state = stack.pop()\n'
-        }
-        for (var i=item.rule.symbols.length; i--; ) {
-          source += 'children[' + i + '] = symbols.pop()\n'
-        }
-        source += 'symbols.push(children)\n'
-        source += 'reduce = ' + JSON.stringify(item.rule.target) + '\n'
-        // source += 'console.log("reducing ' + item.rule.toString() + '")\n'
-        source += 'continue\n'
+        source += 'case ' + match + ': r' + item.rule.id + '(); continue\n'
       }
       source += 'default: console.log("reduce fail: did not expect " + JSON.stringify(token.type)); return state\n'
       source += '}\n'
 
     } else {
-      source += 'switch (reduce || token.type) {\n'
+      source += 'switch (token.type) {\n'
       for (var symbol in state.transitions) {
         let next = state.transitions[symbol]
-        source += 'case ' + JSON.stringify(symbol) + ':\n'
-        source += 'stack.push(state); state = ' + next.index + '\n'
-        // source += 'console.log("shift ' + symbol + '")\n'
-        if (grammar.isTerminal(symbol)) {
-          source += 'symbols.push(token.value)\n'
-          source += 'token = nextToken; '
-          source += 'nextToken = lex(); '
-          // source += 'console.log("read " + token.type + " `" + token.value + "`")\n'
-        } else {
-          source += 'reduce = null\n'
-        }
-        source += 'continue\n'
+        source += 'case ' + JSON.stringify(symbol) + ': s' + next.index + '(); continue\n'
       }
-      source += 'default: console.log("fail:", reduce || token.type); return state\n' // TODO throw unexpected token
+      source += 'default: console.log("fail:", token.type); return state\n' // TODO throw unexpected token
       source += '}\n'
 
     }

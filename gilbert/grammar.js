@@ -11,6 +11,7 @@ class Rule {
     this.target = target
     this.build = build
     this._items = {}
+    this.id = ++Rule.highestId
   }
 
   startItem(lookahead) {
@@ -41,6 +42,7 @@ class Rule {
     return clone
   }
 }
+Rule.highestId = 0
 
 class LR1 {
   constructor(rule, dot, lookahead) {
@@ -86,6 +88,7 @@ LR1.EOF = '$EOF'
 
 class Grammar {
   constructor(options) {
+    this.rules = []
     this.ruleSets = {} // rules by target
     this.start = options.start
     this.highestPriority = 0
@@ -95,6 +98,7 @@ class Grammar {
   }
 
   add(rule) {
+    this.rules.push(rule)
     if (!(rule instanceof Rule)) throw 'not a rule'
     rule.priority = ++this.highestPriority
     var set = this.ruleSets[rule.target]
