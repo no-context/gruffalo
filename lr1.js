@@ -35,7 +35,7 @@ class Rule {
   }
 
   toString() {
-    return '<' + this.target.toString() + ' → ' + this.symbols.join(' ') + '>'
+    return this.target.toString() + ' → ' + this.symbols.join(' ')
   }
 
   reverse() {
@@ -64,7 +64,7 @@ class LR1 {
     let symbols = this.rule.symbols.slice()
     symbols.splice(this.dot, 0, '•')
     let lookahead = this.lookahead == LR1.EOF ? '$' : this.lookahead
-    return this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + ' ;  ' + lookahead
+    return this.rule.target.toString() + ' → ' + symbols.map(x => x.toString()).join(' ') + ' :: ' + lookahead
   }
 }
 LR1.highestId = 0
@@ -74,6 +74,7 @@ LR1.EOF = '$EOF'
 class Grammar {
   constructor(options) {
     this.ruleSets = {} // rules by target
+    this.start = options.start
     this.highestPriority = 0
   }
 
@@ -228,7 +229,7 @@ class State {
 }
 
 function party(g) {
-  let accept = new Rule('$acc', ['S'])
+  let accept = new Rule('$acc', [g.start])
   accept.isAccepting = true
 
   let start = new State(g)
@@ -266,17 +267,17 @@ function log(states) {
 
     for (let item of state.items) {
       let r = item.toString()
-      while (r.length < 20) { r += ' ' }
+      while (r.length < 50) { r += ' ' }
 
       if (item.wants === undefined) {
         if (item.rule.isAccepting) {
-          r += 'accept'
+          r += ' accept'
         } else {
           // reduction
-          r += 'reduce ' + item.rule
+          r += ' reduce <' + item.rule + '>'
         }
       } else {
-        r += '-> s' + state.transitions[item.wants].index
+        r += ' -> s' + state.transitions[item.wants].index
       }
       console.log(r)
     }
@@ -317,7 +318,7 @@ function compile(grammar) {
     }
 
     if (state.reductions.length) {
-      source += 'switch (nextToken) {\n'
+      source += 'switch (nextToken.type) {\n'
       for (let item of state.reductions) {
         for (let lookahead of item.lookahead) {
           let match = lookahead == LR1.EOF ? 'undefined' : JSON.stringify(lookahead)
@@ -340,7 +341,7 @@ function compile(grammar) {
       source += '}\n'
 
     } else {
-      source += 'switch (reduce || token) {\n'
+      source += 'switch (reduce || token.type) {\n'
       for (var symbol in state.transitions) {
         let next = state.transitions[symbol]
         //if (set.length > 1) { throw 'shift-shift conflict?!' }
@@ -350,10 +351,10 @@ function compile(grammar) {
         source += 'stack.push(state); state = ' + next.index + '\n'
         source += 'console.log("shift ' + symbol + '")\n'
         if (grammar.isTerminal(symbol)) {
-          source += 'symbols.push(token)\n'
+          source += 'symbols.push(token.value)\n'
           source += 'token = nextToken; '
           source += 'nextToken = lex(); '
-          source += 'console.log("read " + token)\n'
+          source += 'console.log("read " + token.type)\n'
         } else {
           source += 'reduce = null\n'
         }
@@ -362,7 +363,7 @@ function compile(grammar) {
         // source += '}\n'
         source += 'continue\n'
       }
-      source += 'default: console.log("fail:", reduce || token); return state\n' // TODO throw unexpected token
+      source += 'default: console.log("fail:", reduce || token.type); return state\n' // TODO throw unexpected token
       source += '}\n'
 
     }
@@ -375,27 +376,64 @@ function compile(grammar) {
 }
 
 
-let g = new Grammar
-//g.add(new Rule('S', ['E']))
-g.add(new Rule('S', ['X', 'X']))
-g.add(new Rule('X', ['a', 'X']))
-g.add(new Rule('X', ['b']))
+var bnf = {
+        "JSONText": [ "JSONValue" ],
+
+        "JSONString": [ "STRING" ],
+
+        "JSONNullLiteral": [ "NULL" ],
+
+        "JSONNumber": [ "NUMBER" ],
+
+        "JSONBooleanLiteral": [ "TRUE", "FALSE" ],
+
+        "JSONValue": [ "JSONNullLiteral",
+                       "JSONBooleanLiteral",
+                       "JSONString",
+                       "JSONNumber",
+                       "JSONObject",
+                       "JSONArray" ],
+
+        "JSONObject": [ "{ }",
+                        "{ JSONMemberList }" ],
+
+        "JSONMember": [ "JSONString : JSONValue" ],
+
+        "JSONMemberList": [ "JSONMember",
+                              "JSONMemberList , JSONMember" ],
+
+        "JSONArray": [ "[ ]",
+                       "[ JSONElementList ]" ],
+
+        "JSONElementList": [ "JSONValue",
+                             "JSONElementList , JSONValue" ]
+}
+
+let g = new Grammar({ start: 'JSONText' })
+for (var target in bnf) {
+  for (var line of bnf[target]) {
+    var symbols = line.split(/ /g)
+    g.add(new Rule(target, symbols))
+  }
+}
 g.log()
 console.log()
 
 var statesByHash = {}
 
 var source = compile(g)
-console.log(source)
+//console.log(source)
 
 var f = eval(source)
 
 let input = Array.from('baab')
 var index = 0
-function next() {
-  return input[index++]
-}
-console.log(pretty(f(next)))
+
+let { tokenizer } = require('./json.tokenizer')
+
+tokenizer.initString('{ "foo": 1 }')
+
+console.log(pretty(f(tokenizer.getNextToken.bind(tokenizer))))
 console.log(index)
 
 function pretty(s) {
