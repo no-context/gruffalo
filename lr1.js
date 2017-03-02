@@ -54,6 +54,9 @@ class LR1 {
     this.dot = dot
     this.advance = null // set by Rule
     this.lookahead = lookahead
+    lookahead.forEach(x => {
+      if (typeof x !== 'string') { throw new Error(JSON.stringify(x)) }
+    })
   }
 
   get isAccepting() {
@@ -109,6 +112,7 @@ class Grammar {
   firstTerminalFor(symbol) {
     let rules = this.ruleSets[symbol]
     if (!rules) { // terminal
+      console.log(symbol)
       return [symbol]
     }
 
@@ -122,14 +126,15 @@ class Grammar {
         j++
         if (!hasNull) {
           result = [null].concat(result)
-        } else {
           hasNull = true
         }
       }
       for ( ; j < terminals.length; j++) {
+        if (typeof terminals[j] !== 'string') { throw new Error(JSON.stringify(terminals[j])) }
         result.push(terminals[j])
       }
     }
+    console.log(JSON.stringify(result))
     return result
   }
 
@@ -140,15 +145,18 @@ class Grammar {
 
     let result = []
     for (var i = 0; i < symbols.length; i++) {
+      if (typeof symbols[i] !== 'string') { throw new Error(JSON.stringify(symbols[i])) }
       let terminals = this.firstTerminalFor(symbols[i])
       if (terminals[0] === null) {
         if (result.length === 0) { result.push(null) }
         for (var j = 1; j < terminals.length; j++) {
+          if (typeof terminals[j] !== 'string') { throw new Error(JSON.stringify(terminals[j])) }
           result.push(terminals[j])
         }
         continue
       }
       for (var j = 0; j < terminals.length; j++) {
+        if (typeof terminals[j] !== 'string') { throw new Error(JSON.stringify(terminals[j])) }
         result.push(terminals[j])
       }
       break
@@ -197,8 +205,18 @@ class State {
         predicted[item.wants] = true
         for (let rule of (grammar.get(item.wants) || [])) {
           let after = item.rule.symbols.slice(item.dot + 1)
-          let lookahead = grammar.firstTerminal(after.concat([item.lookahead]))
-          this.addItem(rule.startItem(lookahead))
+
+          let lookahead = item.lookahead
+          let out = []
+          for (var i = lookahead.length; i--; ) {
+            let terminal = lookahead[i]
+            let terminals = grammar.firstTerminal(after.concat([terminal]))
+            for (var j = terminals.length; j--; ) {
+              out.push(terminals[j])
+            }
+          }
+
+          this.addItem(rule.startItem(out))
         }
       }
     }
@@ -300,7 +318,7 @@ function compile(grammar) {
   source += 'var reduce = null\n'
   source += 'var count = 0\n'
   source += 'while (true) {\n'
-  source += 'console.log(stack.join(" "), state, "--", reduce || token) //, symbols)\n'
+  source += 'console.log(stack.join(" "), state, "--", reduce || token.type) //, symbols)\n'
   //source += 'if (count++ > 10) break\n'
   source += 'switch (state) {\n'
 
@@ -311,17 +329,18 @@ function compile(grammar) {
     if (state.accept) {
       let item = state.accept
       source += '// ' + item.toString() + '\n'
-      source += 'if (!token) {\n'
+      source += 'if (token.type === "$") {\n'
       source += 'console.log("accept ' + item.rule.toString() + '")\n'
       source += 'return symbols // accept\n'
       source += '}\n'
     }
 
     if (state.reductions.length) {
-      source += 'switch (nextToken.type) {\n'
+      source += 'switch (token.type) {\n'
       for (let item of state.reductions) {
         for (let lookahead of item.lookahead) {
-          let match = lookahead == LR1.EOF ? 'undefined' : JSON.stringify(lookahead)
+          if (typeof lookahead !== 'string') { throw new Error(JSON.stringify(lookahead)) }
+          let match = lookahead == LR1.EOF ? '"$"' : JSON.stringify(lookahead)
           source += 'case ' + match + ':\n'
           source += '// ' + item.toString() + ' -- reduce\n'
           source += 'var children = []\n'
@@ -337,7 +356,7 @@ function compile(grammar) {
           source += 'continue\n'
         }
       }
-      source += 'default: console.log("reduce fail"); return state\n'
+      source += 'default: console.log("reduce fail: did not expect " + JSON.stringify(token.type)); return state\n'
       source += '}\n'
 
     } else {
@@ -422,7 +441,7 @@ console.log()
 var statesByHash = {}
 
 var source = compile(g)
-//console.log(source)
+console.log(source)
 
 var f = eval(source)
 
