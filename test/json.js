@@ -1,3 +1,4 @@
+
 const tokens = {"STRING":"11","NUMBER":"12","{":"13","}":"14","[":"15","]":"16",",":"17",":":"18","TRUE":"19","FALSE":"20","NULL":"21","$":"22"};
 
 const EOF = '$';
@@ -229,5 +230,60 @@ tokenizer = {
   },
 };
 
-module.exports = { tokens, tokenizer }
+
+/*****************************************************************************/
+
+
+const {
+  Grammar,
+  Rule,
+  compile,
+} = require('../gilbert')
+
+
+var bnf = {
+  "JSONText": [ "JSONValue" ],
+
+  "JSONString": [ "STRING" ],
+
+  "JSONNullLiteral": [ "NULL" ],
+
+  "JSONNumber": [ "NUMBER" ],
+
+  "JSONBooleanLiteral": [ "TRUE", "FALSE" ],
+
+  "JSONValue": [ "JSONNullLiteral",
+                 "JSONBooleanLiteral",
+                 "JSONString",
+                 "JSONNumber",
+                 "JSONObject",
+                 "JSONArray" ],
+
+  "JSONObject": [ "{ }",
+                  "{ JSONMemberList }" ],
+
+  "JSONMember": [ "JSONString : JSONValue" ],
+
+  "JSONMemberList": [ "JSONMember",
+                        "JSONMemberList , JSONMember" ],
+
+  "JSONArray": [ "[ ]",
+                 "[ JSONElementList ]" ],
+
+  "JSONElementList": [ "JSONValue",
+                       "JSONElementList , JSONValue" ]
+}
+
+let g = new Grammar({ start: 'JSONText' })
+for (var target in bnf) {
+  for (var line of bnf[target]) {
+    var symbols = line.split(/ /g)
+    g.add(new Rule(target, symbols))
+  }
+}
+
+module.exports = {
+  grammar: g,
+  tokenizer,
+}
 

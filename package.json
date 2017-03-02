@@ -1,0 +1,15 @@
+{
+  "name": "gilbert",
+  "version": "0.1.0",
+  "description": "a parser generator: incredibly flexible but as fast as yacc",
+  "main": "gilbert/",
+  "repository": "https://github.com/tjvr/gilbert",
+  "author": "Tim Radvan <tim@tjvr.org>",
+  "license": "BSD-3-Clause",
+  "scripts": {
+      "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^19.0.2"
+  }
+}
