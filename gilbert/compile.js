@@ -101,18 +101,23 @@ class Block {
   generateSwitch(calls) {
     var op = this.ops[0]
     let test = op.test
+    function isCase(op) {
+      return op.action === 'if' && op.test === test
+    }
 
     var source = ''
     source += 'switch (' + test + ') {\n'
 
-    // TODO merge cases with same target
+    while (isCase(op) && op.fblock.ops.length === 1) {
+      let body = op.tblock
+      while (op.tblock === body) {
+        source += 'case ' + str(op.value) + ': '
+        var fblock = op.fblock
+        op = fblock.ops[0] 
+      }
 
-    while (op.action === 'if' && op.test === test && op.fblock.ops.length === 1) {
-      source += 'case ' + str(op.value) + ': '
-      source += op.tblock.generate(calls) //.replace(/\n/g, '; ')
+      source += body.generate(calls) //.replace(/\n/g, '; ')
       source += 'break\n'
-      var fblock = op.fblock
-      op = fblock.ops[0] 
     }
 
     source += 'default: '
@@ -220,10 +225,20 @@ function reductions(state) {
   used['g' + state.index] = true
   var op = code(exit, used)
 
+  let rules = {}
+  let jumps = {}
   for (let item of state.reductions) {
+    let rule = item.rule
     let match = item.lookahead == LR1.EOF ? '$' : item.lookahead
-    let body = specialReduce(state, item.rule)
-    op = cond('TOKEN.type', match, body, new Block([op]))
+    ;(jumps[rule.id] = jumps[rule.id] || []).push(match)
+    rules[rule.id] = rule
+  }
+
+  for (let ruleId in jumps) {
+    let body = specialReduce(state, rules[ruleId])
+    for (let match of jumps[ruleId]) {
+      op = cond('TOKEN.type', match, body, new Block([op]))
+    }
   }
 
   if (state.accept) {
@@ -236,16 +251,25 @@ function reductions(state) {
 function go(state) {
   var op = error('g' + state.index)
 
+  let jumps = {}
   for (var symbol in state.transitions) {
     let next = state.transitions[symbol]
-    op = cond('GOTO', symbol, new Block([
-      call('p' + next.index),
-      jump('i' + next.index),
-    ]), new Block([op]))
+    ;(jumps[next.index] = jumps[next.index] || []).push(symbol)
+  }
+
+  for (var next in jumps) {
+    let body = new Block([
+      call('p' + next),
+      jump('i' + next),
+    ])
+    for (var symbol of jumps[next]) {
+      op = cond('GOTO', symbol, body, new Block([op]))
+    }
   }
 
   return new Block('g' + state.index, [op])
 }
+
 
 function compile(grammar) {
   let states = generateStates(grammar)
