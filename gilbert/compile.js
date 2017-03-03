@@ -55,7 +55,7 @@ function compile(grammar) {
     for (var symbol in state.transitions) {
       if (!grammar.isTerminal(symbol)) {
         let next = state.transitions[symbol]
-        source += '  case ' + str(symbol) + ': p' + next.index + '(); return\n'
+        source += '  case ' + str(symbol) + ': IMMEDIATE = p' + next.index + '; return\n'
       }
     }
     source += '  default: error(' + str('g' + state.index) + ')\n'
@@ -86,7 +86,7 @@ function compile(grammar) {
     }
     for (var symbol in state.transitions) {
       let next = state.transitions[symbol]
-      source += '  case ' + str(symbol) + ': p' + next.index + '(); NODES.push(TOKEN); TOKEN = lex(); return\n'
+      source += '  case ' + str(symbol) + ': read(); IMMEDIATE = p' + next.index + '; return\n'
     }
     source += '  default: error(' + state.index + ')\n'
     source += ' }\n'
@@ -94,6 +94,11 @@ function compile(grammar) {
   })
 
   source += `
+  function read() {
+    NODES.push(TOKEN);
+    TOKEN = lex();
+  }
+
   var TOKEN = lex()
   var GOTO
   var IMMEDIATE = i0
