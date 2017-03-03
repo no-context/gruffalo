@@ -18,6 +18,7 @@ class Block {
     this.name = name
     this.ops = ops
     if (!(ops instanceof Array)) throw new Error(JSON.stringify(ops))
+    if (ops[0].action === 'if' && ops.length > 1) { throw 'bad' }
   }
 
   resolve(lookup) {
@@ -43,31 +44,11 @@ class Block {
 
   generate(calls, str, elidable) {
     var elidable = elidable || {}
-    if (this.ops.length === 1) {
-      let first = this.ops[0]
-      if (first.action === 'if') {
-        let child = first.fblock.ops[0]
-        if (child.action === 'if' && child.test === first.test) {
-          return this.generateSwitch(calls, str)
-        }
-      }
-    }
-
     var source = ''
     for (let op of this.ops) {
       switch (op.action) {
         case 'if':
-          if (elidable[op.test] === op.value) {
-            source += op.tblock.generate(calls, str, elidable)
-          } else {
-            source += 'if (' + op.test + ' === ' + str(op.value) + ') {\n'
-            elidable[op.test] = op.value
-            source += op.tblock.generate(calls, str, elidable)
-            delete elidable[op.test]
-            source += '} else {\n'
-            source += op.fblock.generate(calls, str)
-            source += '}\n'
-          }
+          source += this.generateIf(op, calls, str, elidable)
           break
         case 'call':
           if (op.block.generate) {
@@ -103,7 +84,49 @@ class Block {
     return source
   }
 
-  generateSwitch(calls, str) {
+  generateIf(op, calls, str, elidable) {
+    let fblock = op.fblock
+    var child = fblock.ops[0]
+    if (child.action === 'if' && child.test === op.test && !(
+      op.tblock === child.tblock
+    )) {
+      return this.generateSwitch(calls, str, elidable)
+    }
+
+    let cond = op.test + ' === ' + str(op.value)
+    while (fblock.ops[0].action === 'if' && op.test === fblock.ops[0].test &&  op.block === fblock.ops[0].block) {
+      child = fblock.ops[0]
+      cond += ' || ' + child.test + ' === ' + str(child.value)
+      fblock = child.fblock
+    }
+
+    var source = ''
+    if (elidable[cond] !== undefined) {
+      if (elidable[cond]) {
+        source += op.tblock.generate(calls, str, elidable)
+      } else {
+        source += fblock.generate(calls, str, elidable)
+      }
+    } else {
+      source += 'if (' + cond + ') {\n'
+      elidable[cond] = true
+      source += op.tblock.generate(calls, str, elidable)
+
+      elidable[cond] = false
+      let f = fblock.ops
+      if (f.length === 1 && f[0].action === 'if') {
+        source += '} else ' + fblock.generate(calls, str)
+      } else {
+        source += '} else {\n'
+        source += fblock.generate(calls, str)
+        source += '}\n'
+      }
+      delete elidable[op.test]
+    }
+    return source
+  }
+
+  generateSwitch(calls, str, elidable) {
     var op = this.ops[0]
     let test = op.test
     function isCase(op) {
@@ -148,7 +171,7 @@ function call(block) {
   return { action: 'call', block }
 }
 
-function cond(test, value, tblock, fblock) {
+function if_(test, value, tblock, fblock) {
   return { action: 'if', test, value, tblock, fblock }
 }
 
@@ -240,12 +263,12 @@ function reductions(state) {
   for (let ruleId in jumps) {
     let body = specialReduce(state, rules[ruleId])
     for (let match of jumps[ruleId]) {
-      op = cond('VAL', match, body, new Block([op]))
+      op = if_('VAL', match, body, new Block([op]))
     }
   }
 
   if (state.accept) {
-    op = cond('VAL', '$', new Block([call('accept')]), new Block([op]))
+    op = if_('VAL', '$', new Block([call('accept')]), new Block([op]))
   }
 
   return new Block('i' + state.index, [ op ])
@@ -266,7 +289,7 @@ function go(state) {
       jump('i' + next),
     ])
     for (var symbol of jumps[next]) {
-      op = cond('GOTO', symbol, body, new Block([op]))
+      op = if_('GOTO', symbol, body, new Block([op]))
     }
   }
 
