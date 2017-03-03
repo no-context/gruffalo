@@ -87,17 +87,14 @@ class Block {
   generateIf(op, calls, str, elidable) {
     let fblock = op.fblock
     var child = fblock.ops[0]
-    if (child.action === 'if' && child.test === op.test && !(
-      op.tblock === child.tblock
-    )) {
+    if (child.action === 'if' && child.test === op.test) {
       return this.generateSwitch(calls, str, elidable)
     }
 
-    let cond = op.test + ' === ' + str(op.value)
-    while (fblock.ops[0].action === 'if' && op.test === fblock.ops[0].test &&  op.block === fblock.ops[0].block) {
-      child = fblock.ops[0]
-      cond += ' || ' + child.test + ' === ' + str(child.value)
-      fblock = child.fblock
+    let cond = ''
+    for (var i = 0; i < op.options.length; i++) {
+      if (i > 0) { cond += ' || ' }
+      cond += op.test + ' === ' + str(op.options[i])
     }
 
     var source = ''
@@ -138,14 +135,16 @@ class Block {
 
     while (isCase(op) && op.fblock.ops.length === 1) {
       let body = op.tblock
-      while (op.tblock === body) {
-        source += 'case ' + str(op.value) + ': '
-        var fblock = op.fblock
-        op = fblock.ops[0] 
+
+      for (var i = 0; i < op.options.length; i++) {
+        source += 'case ' + str(op.options[i]) + ': '
       }
 
       source += body.generate(calls, str) //.replace(/\n/g, '; ')
       source += 'break\n'
+
+      var fblock = op.fblock
+      op = fblock.ops[0]
     }
 
     source += 'default: '
@@ -171,8 +170,8 @@ function call(block) {
   return { action: 'call', block }
 }
 
-function if_(test, value, tblock, fblock) {
-  return { action: 'if', test, value, tblock, fblock }
+function if_(test, options, tblock, fblock) {
+  return { action: 'if', test, options, tblock, fblock }
 }
 
 function error(name) {
@@ -262,13 +261,11 @@ function reductions(state) {
 
   for (let ruleId in jumps) {
     let body = specialReduce(state, rules[ruleId])
-    for (let match of jumps[ruleId]) {
-      op = if_('VAL', match, body, new Block([op]))
-    }
+    op = if_('VAL', jumps[ruleId], body, new Block([op]))
   }
 
   if (state.accept) {
-    op = if_('VAL', '$', new Block([call('accept')]), new Block([op]))
+    op = if_('VAL', ['$'], new Block([call('accept')]), new Block([op]))
   }
 
   return new Block('i' + state.index, [ op ])
@@ -288,9 +285,7 @@ function go(state) {
       call('p' + next),
       jump('i' + next),
     ])
-    for (var symbol of jumps[next]) {
-      op = if_('GOTO', symbol, body, new Block([op]))
-    }
+    op = if_('GOTO', jumps[next], body, new Block([op]))
   }
 
   return new Block('g' + state.index, [op])
