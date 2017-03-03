@@ -128,12 +128,12 @@ function body(block, lookup, used) {
 
   if (block.exit) {
     let cont = block.exit
-    // if (lookup[block.exit]) {
-    //   source += body(lookup[block.exit], lookup, used)
-    // } else {
-    source += 'return ' + block.exit + '\n'
-    used[block.exit] = true
-    // }
+    if (lookup[block.exit]) {
+      source += body(lookup[block.exit], lookup, used)
+    } else {
+      source += 'return ' + block.exit + '\n'
+      used[block.exit] = true
+    }
   }
   return source
 }
@@ -168,7 +168,7 @@ function compile(grammar) {
   }
 
   let functions = {}
-  let used = { 'g0': true }
+  let used = { 'g0': true, 'i0': true }
   for (var i = 0; i < blocks.length; i++) {
     let block = blocks[i]
     functions[block.name] = generate(block, lookup, used)
@@ -180,13 +180,16 @@ function compile(grammar) {
   function error(id) { throw new Error(id); }
   \n`
 
+  var count = 0
   for (var i = 0; i < blocks.length; i++) {
     let block = blocks[i]
     if (used[block.name]) {
       let func = functions[block.name]
       source += func
+      count++
     }
   }
+  console.log(count + ' functions generated')
 
   source += `
   var TOKEN
