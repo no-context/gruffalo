@@ -222,8 +222,6 @@ function specialReduce(state, rule) {
 
 function reductions(state) {
   let exit = ''
-  exit += 'DATA = TOKEN\n'
-  exit += 'GOTO = VAL\n'
   exit += 'CONT = g' + state.index + '\n'
 
   let used = {}
@@ -350,6 +348,8 @@ function compile(grammar) {
     while (cont) {
       cont = cont()
     }
+    DATA = TOKEN
+    GOTO = VAL
   } while (VAL !== ${ str('$') })
   return NODES[0]
   \n`
