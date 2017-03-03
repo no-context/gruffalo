@@ -67,27 +67,34 @@ function push(state) {
 
 function next(state) {
   var source = ''
-
   if (state.accept) {
     source += ' if (TOKEN.type === "$") { return null }\n'
   }
 
-  source += ' switch (TOKEN.type) {\n'
+  let targets = {}
   for (let item of state.reductions) {
     let lookahead = item.lookahead
-    let match = lookahead == LR1.EOF ? '"$"' : str(lookahead)
-    source += '  case ' + match + ': return r' + item.rule.id + '\n'
+    let match = lookahead == LR1.EOF ? '$' : lookahead
+    targets[match] = 'r' + item.rule.id
   }
   for (var symbol in state.transitions) {
     let next = state.transitions[symbol]
-    source += '  case ' + str(symbol) + ': read(); return p' + next.index + '\n'
+    targets[symbol] = 's' + next.index
   }
-  source += '  default: error(' + state.index + ')\n'
-  source += ' }\n'
 
   return {
     name: 'i' + state.index,
     source,
+    switch: 'TOKEN.type',
+    targets,
+  }
+}
+
+function readNext(state) {
+  return {
+    name: 's' + state.index,
+    source: 'read()\n',
+    exit: 'p' + state.index,
   }
 }
 
@@ -110,6 +117,7 @@ function compile(grammar) {
     add(go(state))
     add(push(state))
     add(next(state))
+    add(readNext(state))
   }
 
   var source = `(function(ctx) {
