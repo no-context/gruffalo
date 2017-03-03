@@ -9,7 +9,7 @@ const {
 } = require('./states')
 
 function str(x) {
-  return JSON.stringify(x)
+  return JSON.stringify('' + x)
 }
 
 
@@ -29,11 +29,10 @@ function reduce(rule) {
   }
   if (typeof rule.build === 'function') {
     var build = rule.build.source ? rule.build.source : '' + rule.build
-    source += ' var node = (' + build + ')(' + children.join(', ') + ')\n'
+    source += ' DATA = (' + build + ')(' + children.join(', ') + ')\n'
   } else {
-    source += ' var node = [' + children.join(', ') + ']\n'
+    source += ' DATA = [' + children.join(', ') + ']\n'
   }
-  source += ' NODES.push(node)\n'
 
   source += ' GOTO = ' + str(rule.target) + '\n'
 
@@ -58,14 +57,18 @@ function go(state) {
 }
 
 function push(state) {
+  var source = ''
+  source += 'STACK.push(g' + state.index + ')\n'
+  source += 'NODES.push(DATA)\n'
   return {
     name: 'p' + state.index,
-    source: 'STACK.push(g' + state.index + ')\n',
+    source,
     exit: 'i' + state.index,
+    calls: { ['g' + state.index]: true },
   }
 }
 
-function next(state) {
+function reductions(state) {
   var source = ''
   if (state.accept) {
     source += ' if (TOKEN.type === "$") { return null }\n'
@@ -77,34 +80,78 @@ function next(state) {
     let match = lookahead == LR1.EOF ? '$' : lookahead
     targets[match] = 'r' + item.rule.id
   }
-  for (var symbol in state.transitions) {
-    let next = state.transitions[symbol]
-    targets[symbol] = 's' + next.index
-  }
 
   return {
     name: 'i' + state.index,
     source,
     switch: 'TOKEN.type',
     targets,
+    exit: 'a' + state.index,
   }
 }
 
-function readNext(state) {
+function quit(state) {
+  var source = ''
+  source += 'DATA = TOKEN\n'
+  source += 'GOTO = TOKEN.type\n'
+  source += 'CONT = g' + state.index + '\n'
   return {
-    name: 's' + state.index,
-    source: 'read()\n',
-    exit: 'p' + state.index,
+    name: 'a' + state.index,
+    source, 
+    exit: 'null',
   }
+}
+
+function body(block, lookup, used) {
+  for (let key in block.calls) {
+    used[key] = true
+  }
+
+  var source = ''
+  if (block.source) {
+    source += block.source
+  }
+
+  if (block.switch) {
+    source += 'switch (' + block.switch + ') {\n'
+    for (var key in block.targets) {
+      let cont = block.targets[key]
+      used[cont] = true
+      source += 'case ' + str(key) + ': return ' + cont + '\n'
+    }
+    if (!block.exit) {
+      source += 'default: error(' + block.name + ')\n'
+    }
+    source += '}\n'
+    // TODO generate straight-line code for single-case switch
+  }
+
+  if (block.exit) {
+    let cont = block.exit
+    // if (lookup[block.exit]) {
+    //   source += body(lookup[block.exit], lookup, used)
+    // } else {
+    source += 'return ' + block.exit + '\n'
+    used[block.exit] = true
+    // }
+  }
+  return source
+}
+
+function generate(block, lookup, used) {
+  return 'function ' + block.name + '() {\n' + body(block, lookup, used) + '}\n'
 }
 
 function compile(grammar) {
   let states = generateStates(grammar)
+  //logStates(states)
   let start = states[0]
 
-  var blocks = []
+  let blocks = []
+  let lookup = {}
 
   function add(block) {
+    lookup[block.name] = block
     blocks.push(block)
   }
 
@@ -116,8 +163,15 @@ function compile(grammar) {
     let state = states[i]
     add(go(state))
     add(push(state))
-    add(next(state))
-    add(readNext(state))
+    add(reductions(state))
+    add(quit(state))
+  }
+
+  let functions = {}
+  let used = { 'g0': true }
+  for (var i = 0; i < blocks.length; i++) {
+    let block = blocks[i]
+    functions[block.name] = generate(block, lookup, used)
   }
 
   var source = `(function(ctx) {
@@ -128,46 +182,35 @@ function compile(grammar) {
 
   for (var i = 0; i < blocks.length; i++) {
     let block = blocks[i]
-    source += 'function ' + block.name + '() {\n'
-    if (block.source) {
-      source += block.source
+    if (used[block.name]) {
+      let func = functions[block.name]
+      source += func
     }
-    if (block.exit) {
-      source += 'return ' + block.exit + '\n'
-    } else if (block.switch) {
-      source += 'switch (' + block.switch + ') {\n'
-      for (var key in block.targets) {
-        source += 'case ' + str(key) + ': return ' + block.targets[key] + '\n'
-      }
-      source += 'default: error(' + block.name + ')\n'
-      source += '}\n'
-    }
-    source += '}\n'
   }
 
   source += `
-  function read() {
-    NODES.push(TOKEN);
-    TOKEN = lex();
-  }
-
-  var TOKEN = lex()
+  var TOKEN
   var GOTO
-  var cont = i0
   var NODES = []
   var STACK = [g0]
-  var ACCEPT = false
-  var COLUMN = []
-  var NEXT = []
-  while (cont) {
-    cont = cont()
-  }
+  var DATA
+  var CONT = i0
+  do {
+    TOKEN = lex()
+    var cont = CONT
+    CONT = null
+    while (cont) {
+      // console.log(cont.name)
+      cont = cont()
+    }
+  } while (TOKEN.type !== '$')
   return NODES[0]
   \n`
 
   source += '})\n'
   source += '}())'
 
+  //console.log(source)
   return source
 }
 
