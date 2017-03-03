@@ -70,10 +70,12 @@ class Block {
           }
           break
         case 'call':
-          let name = op.block.name || op.block
-          //if (!op.block.name) throw JSON.stringify(op)
-          calls[name] = true
-          source += name + '()\n'
+          if (op.block.generate) {
+            source += op.block.generate(calls, str, elidable)
+          } else {
+            calls[op.block] = true
+            source += name + '()\n'
+          }
           break
         case 'exec':
           for (let key in op.used) {
