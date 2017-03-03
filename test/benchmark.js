@@ -78,6 +78,7 @@ addTest('gilbert json', jsonParser, [
     // Example.read('test/test1.json'),
     Example.read('test/test2.json'),
     Example.read('test/sample1k.json'),
+    Example.read('test/sample10k.json'),
 ]);
 
 
