@@ -45,19 +45,15 @@ function reduce(rule) {
 }
 
 function go(state) {
-  var source = ''
-  source += ' switch (GOTO) {\n'
+  let targets = {}
   for (var symbol in state.transitions) {
-    //if (!grammar.isTerminal(symbol)) {
-      let next = state.transitions[symbol]
-      source += '  case ' + str(symbol) + ': return p' + next.index + '\n'
-    //}
+    let next = state.transitions[symbol]
+    targets[symbol] = 'p' + next.index
   }
-  source += '  default: error(' + str('g' + state.index) + ')\n'
-  source += ' }\n'
   return {
     name: 'g' + state.index,
-    source,
+    switch: 'GOTO',
+    targets,
   }
 }
 
@@ -125,9 +121,18 @@ function compile(grammar) {
   for (var i = 0; i < blocks.length; i++) {
     let block = blocks[i]
     source += 'function ' + block.name + '() {\n'
-    source += block.source
+    if (block.source) {
+      source += block.source
+    }
     if (block.exit) {
       source += 'return ' + block.exit + '\n'
+    } else if (block.switch) {
+      source += 'switch (' + block.switch + ') {\n'
+      for (var key in block.targets) {
+        source += 'case ' + str(key) + ': return ' + block.targets[key] + '\n'
+      }
+      source += 'default: error(' + block.name + ')\n'
+      source += '}\n'
     }
     source += '}\n'
   }
