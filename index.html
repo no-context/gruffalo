@@ -1,0 +1,22 @@
+<!doctype html>
+
+<script src="foo.js"></script>
+<script src="test/json-tokenizer.js"></script>
+
+<script>
+var xhr = new XMLHttpRequest
+xhr.open('GET', 'test/sample1k.json', false)
+xhr.send()
+var sample1k = xhr.responseText
+
+let p = jsonParser({})
+
+let tokenizer = window.jsonTokenizer
+tokenizer.initString(sample1k)
+let lex = tokenizer.getNextToken.bind(tokenizer)
+
+function party() {
+  return p(lex)
+}
+
+</script>

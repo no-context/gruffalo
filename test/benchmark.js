@@ -15,7 +15,8 @@ function read(filename) {
 // JSON parser
 
 const { grammar, tokenizer } = require('./json')
-let p = eval(gilbert.compile(grammar))
+let ctx = {}
+let p = eval(gilbert.compile(grammar))(ctx)
 function jsonParser(input) {
   tokenizer.initString(input)
   return p(tokenizer.getNextToken.bind(tokenizer))

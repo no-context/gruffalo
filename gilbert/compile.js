@@ -312,12 +312,13 @@ function compile(grammar) {
     source += 'function ' + block.name + '() {\n'
     source += block.generate(calls, str)
     source += '}\n'
+    source += '\n'
     functions[key] = source
   }
   // TODO generate less functions?
 
-  var source = `(function(ctx) {
-  return (function (lex) {
+  var source = `(function (ctx) {
+  return function (lex) {
 
   function error(id) { throw new Error(id); }
   \n`
@@ -354,8 +355,8 @@ function compile(grammar) {
   return NODES[0]
   \n`
 
+  source += '}\n'
   source += '})\n'
-  source += '}())'
 
   process.stderr.write(source.length + ' bytes\n')
   // console.log(source)

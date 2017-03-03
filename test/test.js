@@ -12,7 +12,8 @@ describe('compiler', () => {
 
   test('can parse JSON', () => {
     let { grammar, tokenizer } = require('./json')
-    let p = eval(gilbert.compile(grammar))
+    let ctx = {}
+    let p = eval(gilbert.compile(grammar))(ctx)
     function parse(input) {
       tokenizer.initString(input)
       return p(tokenizer.getNextToken.bind(tokenizer))
