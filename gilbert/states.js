@@ -16,6 +16,7 @@ class State {
     this.transitions = {}
     this.reductions = []
     this.accept = null
+    this.incoming = {}
   }
 
   addItem(item) {
@@ -67,6 +68,7 @@ class State {
 
   successor(symbol, statesByHash) {
     let next = new State(this.grammar)
+    next.incoming = { [this.index]: true }
     let ids = []
     for (let item of this.wants[symbol]) {
       let lr0 = item.advance

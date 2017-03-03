@@ -81,11 +81,18 @@ function reductions(state) {
     targets[match] = 'r' + item.rule.id
   }
 
+  let afterTarget = null
+  let reductionStates = Object.keys(state.incoming)
+  if (reductionStates.length === 1) {
+    afterTarget = Object.keys(state.incoming)[0]
+  }
+
   return {
     name: 'i' + state.index,
     source,
     switch: 'TOKEN.type',
     targets,
+    afterTarget,
     exit: 'a' + state.index,
   }
 }
