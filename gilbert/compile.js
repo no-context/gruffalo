@@ -28,7 +28,6 @@ function compile(grammar) {
     for (var i=rule.symbols.length; i--; ) {
       source += ' STACK.pop()\n'
     }
-    source += ' IMMEDIATE = STACK[STACK.length - 1]\n'
 
     for (var i = rule.symbols.length; i--; ) {
       source += ' var c' + i + ' = NODES.pop()\n'
@@ -44,7 +43,9 @@ function compile(grammar) {
       source += ' var node = [' + children.join(', ') + ']\n'
     }
     source += ' NODES.push(node)\n'
+
     source += ' GOTO = ' + str(rule.target) + '\n'
+    source += ' return STACK[STACK.length - 1]\n'
     source += '}\n'
   }
   source += '\n'
@@ -55,7 +56,7 @@ function compile(grammar) {
     for (var symbol in state.transitions) {
       if (!grammar.isTerminal(symbol)) {
         let next = state.transitions[symbol]
-        source += '  case ' + str(symbol) + ': IMMEDIATE = p' + next.index + '; return\n'
+        source += '  case ' + str(symbol) + ': return p' + next.index + '\n'
       }
     }
     source += '  default: error(' + str('g' + state.index) + ')\n'
@@ -67,7 +68,7 @@ function compile(grammar) {
   states.forEach(state => {
     source += 'function p' + state.index + '() {\n'
     source += ' STACK.push(g' + state.index + ')\n'
-    source += ' IMMEDIATE = i' + state.index + '\n'
+    source += ' return i' + state.index + '\n'
     source += '}\n'
   })
 
@@ -75,18 +76,18 @@ function compile(grammar) {
     source += 'function i' + state.index + '() {\n'
 
     if (state.accept) {
-      source += ' if (TOKEN.type === "$") { IMMEDIATE = null; return }\n'
+      source += ' if (TOKEN.type === "$") { return null }\n'
     }
 
     source += ' switch (TOKEN.type) {\n'
     for (let item of state.reductions) {
       let lookahead = item.lookahead
       let match = lookahead == LR1.EOF ? '"$"' : str(lookahead)
-      source += '  case ' + match + ': r' + item.rule.id + '(); return\n'
+      source += '  case ' + match + ': return r' + item.rule.id + '\n'
     }
     for (var symbol in state.transitions) {
       let next = state.transitions[symbol]
-      source += '  case ' + str(symbol) + ': read(); IMMEDIATE = p' + next.index + '; return\n'
+      source += '  case ' + str(symbol) + ': read(); return p' + next.index + '\n'
     }
     source += '  default: error(' + state.index + ')\n'
     source += ' }\n'
@@ -101,15 +102,14 @@ function compile(grammar) {
 
   var TOKEN = lex()
   var GOTO
-  var IMMEDIATE = i0
+  var cont = i0
   var NODES = []
   var STACK = [g0]
   var ACCEPT = false
   var COLUMN = []
   var NEXT = []
-  while (IMMEDIATE) {
-    // console.log(IMMEDIATE.name)
-    IMMEDIATE()
+  while (cont) {
+    cont = cont()
   }
   return NODES[0]
   \n`
