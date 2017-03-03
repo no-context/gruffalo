@@ -8,10 +8,6 @@ const {
   State,
 } = require('./states')
 
-function str(x) {
-  return JSON.stringify('' + x)
-}
-
 
 class Block {
   constructor(name, ops) {
@@ -45,13 +41,13 @@ class Block {
     }
   }
 
-  generate(calls) {
+  generate(calls, str) {
     if (this.ops.length === 1) {
       let first = this.ops[0]
       if (first.action === 'if') {
         let child = first.fblock.ops[0]
         if (child.action === 'if' && child.test === first.test) {
-          return this.generateSwitch(calls)
+          return this.generateSwitch(calls, str)
         }
       }
     }
@@ -61,9 +57,9 @@ class Block {
       switch (op.action) {
         case 'if':
           source += 'if (' + op.test + ' === ' + str(op.value) + ') {\n'
-          source += op.tblock.generate(calls)
+          source += op.tblock.generate(calls, str)
           source += '} else {\n'
-          source += op.fblock.generate(calls)
+          source += op.fblock.generate(calls, str)
           source += '}\n'
           break
         case 'call':
@@ -82,14 +78,14 @@ class Block {
           let block = op.block
           if (block.generate) {
             if (!block.generate) debugger
-            source += block.generate(calls)
+            source += block.generate(calls, str)
           } else {
             calls[op.block] = true
             source += 'return ' + op.block + '\n'
           }
           break
         case 'error':
-          source += 'error(' + str(op.name) + ')\n'
+          source += 'error("' + op.name + '")\n'
           break
         default:
           throw JSON.stringify(op)
@@ -98,7 +94,7 @@ class Block {
     return source
   }
 
-  generateSwitch(calls) {
+  generateSwitch(calls, str) {
     var op = this.ops[0]
     let test = op.test
     function isCase(op) {
@@ -116,12 +112,12 @@ class Block {
         op = fblock.ops[0] 
       }
 
-      source += body.generate(calls) //.replace(/\n/g, '; ')
+      source += body.generate(calls, str) //.replace(/\n/g, '; ')
       source += 'break\n'
     }
 
     source += 'default: '
-    source += fblock.generate(calls)
+    source += fblock.generate(calls, str)
 
     source += '}\n'
     return source
@@ -151,7 +147,7 @@ function error(name) {
   return { action: 'error', name }
 }
 
-function reduce(rule) {
+function reduce(rule, str) {
   var source = ''
   // source += 'console.log("r' + rule.id + '")\n'
 
@@ -218,7 +214,7 @@ function specialReduce(state, rule) {
 function reductions(state) {
   let exit = ''
   exit += 'DATA = TOKEN\n'
-  exit += 'GOTO = TOKEN.type\n'
+  exit += 'GOTO = VAL\n'
   exit += 'CONT = g' + state.index + '\n'
 
   let used = {}
@@ -237,12 +233,12 @@ function reductions(state) {
   for (let ruleId in jumps) {
     let body = specialReduce(state, rules[ruleId])
     for (let match of jumps[ruleId]) {
-      op = cond('TOKEN.type', match, body, new Block([op]))
+      op = cond('VAL', match, body, new Block([op]))
     }
   }
 
   if (state.accept) {
-    op = cond('TOKEN.type', '$', new Block([call('accept')]), new Block([op]))
+    op = cond('VAL', '$', new Block([call('accept')]), new Block([op]))
   }
 
   return new Block('i' + state.index, [ op ])
@@ -276,6 +272,16 @@ function compile(grammar) {
   // logStates(states)
   let start = states[0]
 
+  let strings = { '$': -1 }
+  var stringCount = 0
+  function str(x) {
+    //return JSON.stringify('' + x)
+    if (!strings[x]) {
+      strings[x] = ++stringCount
+    }
+    return strings[x]
+  }
+
   let blocks = {}
   function add(block) {
     blocks[block.name] = block
@@ -283,7 +289,7 @@ function compile(grammar) {
   add(new Block('accept', [code('return null\n')]))
 
   for (var j = 0; j < grammar.rules.length; j++) {
-    add(reduce(grammar.rules[j]))
+    add(reduce(grammar.rules[j], str))
   }
 
   for (var i = 0; i < states.length; i++) {
@@ -303,7 +309,7 @@ function compile(grammar) {
     let block = blocks[key]
     let source = ''
     source += 'function ' + block.name + '() {\n'
-    source += block.generate(calls)
+    source += block.generate(calls, str)
     source += '}\n'
     functions[key] = source
   }
@@ -326,19 +332,23 @@ function compile(grammar) {
 
   source += `
   var TOKEN
+  var VAL
   var GOTO
   var NODES = []
   var STACK = [g0]
   var DATA
   var CONT = i0
+
+  var STRINGS = ${ JSON.stringify(strings) };
   do {
     TOKEN = lex()
+    VAL = STRINGS[TOKEN.type]
     var cont = CONT
     CONT = null
     while (cont) {
       cont = cont()
     }
-  } while (TOKEN.type !== '$')
+  } while (VAL !== ${ str('$') })
   return NODES[0]
   \n`
 
