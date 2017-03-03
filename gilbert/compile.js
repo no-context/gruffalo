@@ -190,12 +190,6 @@ function push(state) {
 }
 
 function specialReduce(state, rule) {
-  return new Block([
-    call('r' + rule.id),
-    jump('STACK[STACK.length - 1]'),
-  ])
-
-  // TODO: review this
   for (var i = rule.symbols.length; i--; ) {
     let incoming = state.incoming
     if (incoming.length !== 1) {
@@ -212,7 +206,7 @@ function specialReduce(state, rule) {
   return new Block([
     call('r' + rule.id),
     call('p' + target.index),
-    jump('i' + state.index),
+    jump('i' + target.index),
   ])
 }
 
