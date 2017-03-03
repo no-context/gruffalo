@@ -113,17 +113,41 @@ function body(block, lookup, used) {
   }
 
   if (block.switch) {
-    source += 'switch (' + block.switch + ') {\n'
+    let jumps = {}
     for (var key in block.targets) {
       let cont = block.targets[key]
-      used[cont] = true
-      source += 'case ' + str(key) + ': return ' + cont + '\n'
+      ;(jumps[cont] = jumps[cont] || []).push(key)
     }
-    if (!block.exit) {
-      source += 'default: error(' + block.name + ')\n'
+
+    if (Object.keys(jumps).length <= 1) {
+      // generate straight-line code for single-case switch
+      var cont = Object.keys(jumps)[0]
+      if (cont) {
+        source += 'if ('
+        let terminals = jumps[cont]
+        for (var i = 0; i < terminals.length; i++) {
+          if (i > 0) { source += ' || ' }
+          source += block.switch + ' === ' + str(terminals[i])
+        }
+        source += ') {\n'
+        source += body(lookup[cont], lookup, used)
+        source += '}\n'
+      }
+
+    } else {
+      source += 'switch (' + block.switch + ') {\n'
+      for (var cont in jumps) {
+        used[cont] = true
+        for (var sym of jumps[cont]) {
+          source += 'case ' + str(sym) + ': '
+        }
+        source += 'return ' + cont + '\n'
+      }
+      if (!block.exit) {
+        source += 'default: error(' + block.name + ')\n'
+      }
+      source += '}\n'
     }
-    source += '}\n'
-    // TODO generate straight-line code for single-case switch
   }
 
   if (block.exit) {
