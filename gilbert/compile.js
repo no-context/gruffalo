@@ -272,14 +272,8 @@ function compile(grammar) {
   // logStates(states)
   let start = states[0]
 
-  let strings = { '$': -1 }
-  var stringCount = 0
   function str(x) {
-    //return JSON.stringify('' + x)
-    if (!strings[x]) {
-      strings[x] = ++stringCount
-    }
-    return strings[x]
+    return JSON.stringify('' + x)
   }
 
   let blocks = {}
@@ -339,10 +333,9 @@ function compile(grammar) {
   var DATA
   var CONT = i0
 
-  var STRINGS = ${ JSON.stringify(strings) };
   do {
     TOKEN = lex()
-    VAL = STRINGS[TOKEN.type]
+    VAL = TOKEN.type
     var cont = CONT
     CONT = null
     while (cont) {
