@@ -81,33 +81,29 @@ function reductions(state) {
     targets[match] = 'r' + item.rule.id
   }
 
+  var fin = ''
+  fin += 'DATA = TOKEN\n'
+  fin += 'GOTO = TOKEN.type\n'
+  fin += 'CONT = g' + state.index + '\n'
+
   return {
     name: 'i' + state.index,
     source,
     switch: 'TOKEN.type',
     targets,
-    exit: 'a' + state.index,
-  }
-}
-
-function quit(state) {
-  var source = ''
-  source += 'DATA = TOKEN\n'
-  source += 'GOTO = TOKEN.type\n'
-  source += 'CONT = g' + state.index + '\n'
-  return {
-    name: 'a' + state.index,
-    source, 
+    fin,
     exit: 'null',
   }
 }
 
-function body(block, lookup, used) {
-  for (let key in block.calls) {
+
+function generate(block, used) {
+  for (var key in block.calls) {
     used[key] = true
   }
 
   var source = ''
+  source += 'function ' + block.name + '() {\n'
   if (block.source) {
     source += block.source
   }
@@ -133,21 +129,16 @@ function body(block, lookup, used) {
     source += '}\n'
   }
 
-  if (block.exit) {
-    let cont = block.exit
-    if (lookup[block.exit]) {
-      source += body(lookup[block.exit], lookup, used)
-    } else {
-      source += 'return ' + block.exit + '\n'
-      used[block.exit] = true
-    }
+  if (block.fin) {
+    source += block.fin
+  } else if (block.exit) {
+    source += 'return ' + block.exit + '\n'
+    used[block.exit] = true
   }
+  source += '}\n'
   return source
 }
 
-function generate(block, lookup, used) {
-  return 'function ' + block.name + '() {\n' + body(block, lookup, used) + '}\n'
-}
 
 function compile(grammar) {
   let states = generateStates(grammar)
@@ -155,10 +146,8 @@ function compile(grammar) {
   let start = states[0]
 
   let blocks = []
-  let lookup = {}
 
   function add(block) {
-    lookup[block.name] = block
     blocks.push(block)
   }
 
@@ -171,14 +160,13 @@ function compile(grammar) {
     add(go(state))
     add(push(state))
     add(reductions(state))
-    add(quit(state))
   }
 
   let functions = {}
   let used = { 'g0': true, 'i0': true }
   for (var i = 0; i < blocks.length; i++) {
     let block = blocks[i]
-    functions[block.name] = generate(block, lookup, used)
+    functions[block.name] = generate(block, used)
   }
 
   var source = `(function(ctx) {
