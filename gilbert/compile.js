@@ -41,7 +41,8 @@ class Block {
     }
   }
 
-  generate(calls, str) {
+  generate(calls, str, elidable) {
+    var elidable = elidable || {}
     if (this.ops.length === 1) {
       let first = this.ops[0]
       if (first.action === 'if') {
@@ -56,11 +57,17 @@ class Block {
     for (let op of this.ops) {
       switch (op.action) {
         case 'if':
-          source += 'if (' + op.test + ' === ' + str(op.value) + ') {\n'
-          source += op.tblock.generate(calls, str)
-          source += '} else {\n'
-          source += op.fblock.generate(calls, str)
-          source += '}\n'
+          if (elidable[op.test] === op.value) {
+            source += op.tblock.generate(calls, str, elidable)
+          } else {
+            source += 'if (' + op.test + ' === ' + str(op.value) + ') {\n'
+            elidable[op.test] = op.value
+            source += op.tblock.generate(calls, str, elidable)
+            delete elidable[op.test]
+            source += '} else {\n'
+            source += op.fblock.generate(calls, str)
+            source += '}\n'
+          }
           break
         case 'call':
           let name = op.block.name || op.block
@@ -78,7 +85,7 @@ class Block {
           let block = op.block
           if (block.generate) {
             if (!block.generate) debugger
-            source += block.generate(calls, str)
+            source += block.generate(calls, str, elidable)
           } else {
             calls[op.block] = true
             source += 'return ' + op.block + '\n'
