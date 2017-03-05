@@ -14,7 +14,8 @@ class State {
     this.index = null
 
     this.transitions = {}
-    this.reductions = []
+    this.reductions = [] // TODO { lookahead -> List of States }
+    // TODO separate nullReductions
     this.accept = null
     this.incoming = []
   }
