@@ -336,6 +336,7 @@ function compile(grammar) {
   // TODO generate less functions?
 
   var source = `(function (ctx) {
+  'use strict';
   return function (lex) {
 
   function error(id) { throw new Error(id); }
