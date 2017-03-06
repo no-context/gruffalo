@@ -18,40 +18,7 @@ class Node {
     return false
   }
 
-  /*
-   * return List of Path
-   * Path = { begin, first }
-   */
-  traverse(length) {
-    if (length === 0) { throw 'oops' }
-
-    let set = []
-    var edges = this.edges
-    for (var i = 0; i < edges.length; i++) {
-      let node = edges[i]
-      set.push({ begin: node, first: node })
-    }
-
-    for ( ; length--; ) {
-      let newSet = []
-      // let byState = {}
-      for (var i = newSet.length; i--; ) {
-        var edges = begin.edges
-        let { begin, first } = newSet[i]
-        for (var j = edges.length; j--; ) {
-          let stateIndex = edges[j].label.index
-          if (stateIndex in byState) {
-            continue
-          }
-          // newSet.push(byState[stateIndex] = edges[j])
-          newSet.push({ begin: edges[j], first: first })
-        }
-      }
-      set = newSet
-    }
-    return set
-  }
-
+  // TODO: test
   traverse(length) {
     if (length === 0) { throw 'oops' }
 
@@ -85,7 +52,10 @@ class Node {
 
 
 class Shift {
-  constructor(node, 
+  constructor(start, advance) {
+    this.start = start // Node
+    this.advance = advance // State
+  }
 }
 
 
@@ -105,6 +75,8 @@ class Column {
     this.reductions = []
     this.uniqueReductions = {}
     this.byState = {} // State.index -> Node
+
+    this.token = null
   }
 
   addNode(state) {
@@ -115,10 +87,10 @@ class Column {
     this.byState[state.index] = node
 
     /* if new node can shift next token, add to shift queue */
-    if (TOKEN in state.transitions) {
+    if (this.token in state.transitions) {
       this.shifts.push({
         start: node,
-        advance: state.transitions[TOKEN],
+        advance: state.transitions[this.token],
       })
     }
   }
@@ -131,14 +103,10 @@ class Column {
     this.reductions.push(this.uniqueReductions[reduction.hash] = reduction)
   }
 
-  process() {
-    while (this.reductions.length) {
-      this.reduce()
-    }
-  }
-
   shift() {
+    let TOKEN = this.token
     let nextColumn = new Column()
+
     for (var i = 0; i < this.shifts.length; i++) {
       let shift = this.shifts[i]
       let { start, advance } = shift // start = v, advance = k 
@@ -179,8 +147,10 @@ class Column {
     }
     return nextColumn
   }
-
+  
   reduce() {
+    let TOKEN = this.token
+
     for (var i = 0; i < this.reductions.length; i++) {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
@@ -227,11 +197,54 @@ class Column {
       // TODO
     }
   }
+
+  /*
+   *
+   * shift()        -- a_i+1
+   * then reduce()  -- a_i+1
+   */
+  process() {
+    let nextColumn = this.shift()
+    while (nextColumn.reductions.length) {
+      nextColumn.reduce()
+    }
+    return nextColumn
+  }
 }
 
-/*
- *
- * shift()        -- a_i+1
- * then reduce()  -- a_i+1
- *
- */
+
+function parse(startState, lex) {
+  let acceptingState = startState.transitions['$acc']
+
+  // TODO handle empty input
+
+  let startColumn = new Column(undefined)
+  startColumn.token = TOKEN = lex()
+  startColumn.addNode(startState)
+  for (let item of startState.reductions[TOKEN]) {
+    let length = item.rule.symbols.length
+    startColumn.addReduction(start, item.rule.target, length)
+  }
+  var column = startColumn.process()
+
+  while (TOKEN !== '$') {
+    // check column is non-empty
+    if (Object.keys(column.byState).length === 0) {
+      throw new Error('Syntax error')
+    }
+
+    column.token = TOKEN = lex()
+    column = column.process()
+  } 
+
+  let finalNode = column.byState[acceptingState]
+  if (!finalNode) {
+      throw new Error('Unexpected end of input')
+  }
+  return column
+}
+
+module.exports = {
+  parse,
+}
+
