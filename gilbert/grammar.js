@@ -56,7 +56,18 @@ class LR1 {
   }
 
   get isAccepting() {
-    return this.rule.isAccepting && this.lookahead == LR1.EOF
+    return this.rule.isAccepting && this.wants === undefined && this.lookahead == LR1.EOF
+  }
+
+  // TODO: test
+  isRightNullable(grammar) {
+    let symbols = this.rule.symbols
+    for (var i = this.dot; i < symbols.length; i++) {
+      if (!grammar.firstTerminalFor(symbols[i])['$null']) {
+        return false
+      }
+    }
+    return true
   }
 
   toString() {
@@ -122,6 +133,7 @@ class Grammar {
     return !this.ruleSets[sym]
   }
 
+  // TODO: test
   firstTerminalFor(symbol, stack) {
     if (this._symbolFirst[symbol]) {
       return this._symbolFirst[symbol]
@@ -152,6 +164,7 @@ class Grammar {
     return this._symbolFirst[symbol] = result
   }
 
+  // TODO: test
   firstTerminal(symbols, stack) {
     if (symbols.length === 0) {
       return { '$null': true }

@@ -22,12 +22,11 @@ class State {
   addItem(item) {
     if (!(item instanceof LR1)) { throw new Error('not an LR1') }
     this.items.push(item)
-    if (item.wants === undefined) {
-      if (item.isAccepting) {
-        this.accept = item
-      } else {
-        this.reductions.push(item)
-      }
+    if (item.isAccepting) {
+      this.accept = item
+    } else if (item.isRightNullable(this.grammar)) {
+      // LR1 is complete, or right nullable after dot
+      this.reductions.push(item)
     } else {
       var set = this.wants[item.wants]
       if (!set) { set = this.wants[item.wants] = [] }
