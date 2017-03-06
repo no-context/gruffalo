@@ -12,12 +12,14 @@ describe('compiler', () => {
 
   test('can parse JSON', () => {
     let { grammar, tokenizer } = require('./json')
-    let ctx = {}
-    let p = eval(gilbert.compile(grammar))(ctx)
+    let states = gilbert.generateStates(grammar)
+
     function parse(input) {
       tokenizer.initString(input)
-      return p(tokenizer.getNextToken.bind(tokenizer))
+      let lex = tokenizer.getNextToken.bind(tokenizer)
+      return gilbert.parse(states[0], lex)
     }
+
     function check(input) {
       expect(parse(input)).toEqual(JSON.parse(input))
     }
