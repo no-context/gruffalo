@@ -26,7 +26,8 @@ class State {
       this.accept = item
     } else if (item.isRightNullable(this.grammar)) {
       // LR1 is complete, or right nullable after dot
-      this.reductions.push(item)
+      let set = this.reductions[item.lookahead] = this.reductions[item.lookahead] || []
+      set.push(item)
     } else {
       var set = this.wants[item.wants]
       if (!set) { set = this.wants[item.wants] = [] }

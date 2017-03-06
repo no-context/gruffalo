@@ -252,11 +252,13 @@ function reductions(state) {
 
   let rules = {}
   let jumps = {}
-  for (let item of state.reductions) {
-    let rule = item.rule
-    let match = item.lookahead == LR1.EOF ? '$' : item.lookahead
-    ;(jumps[rule.id] = jumps[rule.id] || []).push(match)
-    rules[rule.id] = rule
+  for (let lookahead in state.reductions) {
+    let match = lookahead == LR1.EOF ? '$' : lookahead
+    for (let item of state.reductions[lookahead]) {
+      let rule = item.rule
+      ;(jumps[rule.id] = jumps[rule.id] || []).push(match)
+      rules[rule.id] = rule
+    }
   }
 
   for (let ruleId in jumps) {
