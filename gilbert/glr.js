@@ -1,4 +1,5 @@
 
+const { LR1 } = require('./grammar')
 
 
 class Node {
@@ -93,6 +94,7 @@ class Column {
         advance: state.transitions[this.token],
       })
     }
+    return node
   }
 
   addReduction(start, target, length) {
@@ -129,7 +131,7 @@ class Column {
         node.addEdge(start)
 
         // TODO comment
-        for (let item of advance.reductions[TOKEN]) {
+        for (let item of advance.reductions[TOKEN] || []) {
           let length = item.rule.symbols.length
           if (length === 0) {
             this.addReduction(node, item.rule.target, 0)
@@ -138,7 +140,7 @@ class Column {
       }
 
       // TODO comment
-      for (let item of advance.reductions[TOKEN]) {
+      for (let item of advance.reductions[TOKEN] || []) {
         let length = item.rule.symbols.length
         if (length !== 0) {
           this.addReduction(start, item.rule.target, length)
@@ -219,21 +221,28 @@ function parse(startState, lex) {
   // TODO handle empty input
 
   let startColumn = new Column(undefined)
-  startColumn.token = TOKEN = lex()
+  TOKEN = lex()
+  startColumn.token = TOKEN.type
   startColumn.addNode(startState)
-  for (let item of startState.reductions[TOKEN]) {
+  for (let item of startState.reductions[TOKEN] || []) {
     let length = item.rule.symbols.length
     startColumn.addReduction(start, item.rule.target, length)
   }
   var column = startColumn.process()
 
-  while (TOKEN !== '$') {
+  let count = 0
+  var prev
+  while (TOKEN.type !== LR1.EOF) {
+    count++
     // check column is non-empty
     if (Object.keys(column.byState).length === 0) {
+      debugger
       throw new Error('Syntax error')
     }
 
-    column.token = TOKEN = lex()
+    TOKEN = lex()
+    column.token = TOKEN.type
+    prev = column
     column = column.process()
   } 
 
