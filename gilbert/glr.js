@@ -157,7 +157,7 @@ class Column {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
       let { start, target, length } = reduction // start: Node = w, target = X, length: Int = m
-      console.log('(', start.name, target, length, ')')
+      // console.log('(', start.name, target, length, ')')
 
       let set = start.traverse(Math.max(0, length - 1))
 
@@ -171,14 +171,14 @@ class Column {
           // existing node
           node = this.byState[nextState.index] // node: Node = w
           node.addEdge(begin) // create an edge from w to u
-          console.log('link', node.name, begin.name)
+          // console.log('link', node.name, begin.name)
 
         } else {
           // new node
           node = this.addNode(nextState) // node: Node = w
-          console.log('made', node.name)
+          // console.log('made', node.name)
           node.addEdge(begin) // create an edge (w, u)
-          console.log('link', node.name, begin.name)
+          // console.log('link', node.name, begin.name)
 
 
           /*
@@ -227,7 +227,7 @@ class Column {
 
 function parse(startState, lex) {
   // TODO don't hardcode grammar start symbol
-  let acceptingState = startState.transitions['S']
+  let acceptingState = startState.transitions['JSONText']
 
   // TODO handle empty input
 
@@ -240,8 +240,8 @@ function parse(startState, lex) {
   }
 
   startColumn.reduce()
-  console.log(startColumn.debug())
-  console.log(startColumn.reductions)
+  // console.log(startColumn.debug())
+  // console.log(startColumn.reductions)
 
   TOKEN = lex()
   var column = new Column(TOKEN.type)
@@ -259,8 +259,8 @@ function parse(startState, lex) {
     }
 
     column.reduce()
-    console.log(column.debug())
-    console.log(column.reductions)
+    // console.log(column.debug())
+    // console.log(column.reductions)
 
     TOKEN = lex()
     var nextColumn = new Column(TOKEN.type)
@@ -269,13 +269,13 @@ function parse(startState, lex) {
   }
 
   column.reduce()
-  console.log(column.debug())
+  // console.log(column.debug())
 
   let finalNode = column.byState[acceptingState.index]
   if (!finalNode) {
       throw new Error('Unexpected end of input')
   }
-  console.log('success!')
+  // console.log('success!')
   return column
 }
 
