@@ -6,16 +6,20 @@ class Node {
   constructor(label) {
     this.label = label
     this.edges = []
-    this.edgesByState = {}
+    this.edgesById = {}
     // data?
 
     this.id = ++Node.highestId
   }
 
-  addEdge(state) {
-    if (!(state.index in this.edgesByState)) {
-      this.edges.push(state)
-      this.edgesByState[state.index] = true
+  get name() {
+    return '?btwvuxyz'[this.id]
+  }
+
+  addEdge(node) {
+    if (!(node.id in this.edgesById)) {
+      this.edges.push(node)
+      this.edgesById[node.id] = true
       return true
     }
     return false
@@ -29,14 +33,15 @@ class Node {
     for ( ; length--; ) {
       let newSet = []
       let byState = {}
-      for (var i = newSet.length; i--; ) {
-        var edges = newSet[i].edges
+      for (var i = set.length; i--; ) {
+        let edges = set[i].edges
         for (var j = edges.length; j--; ) {
           let stateIndex = edges[j].label.index
           if (stateIndex in byState) {
             continue
           }
-          newSet.push(byState[stateIndex] = edges[j])
+          byState[stateIndex] = true
+          newSet.push(edges[j])
         }
       }
       set = newSet
@@ -46,9 +51,9 @@ class Node {
 
   debug() {
     var r = ''
-    r += '  ' + '?btwvuxyz'[this.id] + ' (s' + this.label.index + ') {\n'
+    r += '  ' + this.name + ' (s' + this.label.index + ') {\n'
     for (let link of this.edges) {
-      r += '    => ' + '?btwvuxyz'[link.id] + '\n'
+      r += '    => ' + link.name + '\n'
     }
     r += '  }'
     return r
@@ -152,34 +157,36 @@ class Column {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
       let { start, target, length } = reduction // start: Node = w, target = X, length: Int = m
-      console.log(TOK, '?btwvuxyz'[start.id], target, length)
+      console.log('(', start.name, target, length, ')')
 
       let set = start.traverse(Math.max(0, length - 1))
-
-      console.log(set.map(n => '?btwvuxyz'[n.id]))
-      console.log(start.traverse(1))
 
       for (let begin of set) { // begin: Node = u
         // begin.label: State = k
         let nextState = begin.label.transitions[target] // nextState: State = l
         if (!nextState) continue
 
+        let node
         if (nextState.index in this.byState) {
           // existing node
-          let node = this.byState[nextState.index] // node: Node = w
+          node = this.byState[nextState.index] // node: Node = w
           node.addEdge(begin) // create an edge from w to u
+          console.log('link', node.name, begin.name)
 
         } else {
           // new node
-          let node = this.addNode(nextState) // node: Node = w
+          node = this.addNode(nextState) // node: Node = w
+          console.log('made', node.name)
           node.addEdge(begin) // create an edge (w, u)
+          console.log('link', node.name, begin.name)
+
 
           /*
            * record all reductions (of length >0)
            * together with the second node along the path
            * which is `node`, since the `start` of a Reduction is the second node... ?!
            */
-          for (let item of nextState.reductions[TOK]) { // lookup l
+          for (let item of nextState.reductions[TOK] || []) { // lookup l
             if (item.dot === 0) {
               // item.rule.target = B
               this.addReduction(node, item.rule.target, 0) // (w, B, 0)
@@ -193,7 +200,7 @@ class Column {
          * to check those against the new path
          */
         if (length > 0) {
-          for (let item of nextState.reductions[TOK]) { // lookup l
+          for (let item of nextState.reductions[TOK] || []) { // lookup l
             if (item.dot > 0) {
               // item.rule.target = B
               this.addReduction(begin, item.rule.target, item.dot) // (u, B, t)
@@ -219,7 +226,8 @@ class Column {
 
 
 function parse(startState, lex) {
-  let acceptingState = startState.transitions['$acc']
+  // TODO don't hardcode grammar start symbol
+  let acceptingState = startState.transitions['S']
 
   // TODO handle empty input
 
@@ -263,10 +271,11 @@ function parse(startState, lex) {
   column.reduce()
   console.log(column.debug())
 
-  let finalNode = column.byState[acceptingState]
+  let finalNode = column.byState[acceptingState.index]
   if (!finalNode) {
       throw new Error('Unexpected end of input')
   }
+  console.log('success!')
   return column
 }
 
