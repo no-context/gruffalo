@@ -98,7 +98,7 @@ class State {
     r += 's' + this.index + '\n'
     for (let lookahead in this.reductions) {
       for (let item of this.reductions[lookahead]) {
-        r += '  [' + lookahead + '] -> reduce <' + item.rule + '>\n'
+        r += '  [' + lookahead + '] -> reduce <' + item.rule + '> ' + item.dot + '\n'
       }
     }
     for (let match in this.transitions) {
@@ -152,34 +152,6 @@ function generateStates(g) {
   }
   return states
 }
-
-function logStates(states) {
-  let start = states[0]
-
-  states.forEach(state => {
-    console.log('s' + state.index)
-
-    for (let item of state.items) {
-      let r = ''
-      r += item.toString() + '\n'
-
-      if (item.rule.isAccepting) {
-        r += '  [$] -> accept\n'
-      }
-
-      for (let rule of state.reductions[item.lookahead] || []) {
-        r += '  [' + item.lookahead + '] -> reduce <' + item.rule + '>\n'
-      }
-
-      if (state.transitions[item.wants]) {
-        r += '  [' + item.wants + '] -> s' + state.transitions[item.wants].index
-      }
-      console.log(r)
-    }
-    console.log()
-  })
-}
-
 
 module.exports = {
   State,

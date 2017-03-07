@@ -46,9 +46,9 @@ class Node {
 
   debug() {
     var r = ''
-    r += '  ' + this.id + ': s' + this.label.index + ' {\n'
+    r += '  ' + '?twvuxyz'[this.id] + ': s' + this.label.index + ' {\n'
     for (let link of this.edges) {
-      r += '    => ' + link.id + ': s' + link.label.index + '\n'
+      r += '    => ' + '?twvuxyz'[link.id] + '\n'
     }
     r += '  }'
     return r
@@ -129,7 +129,7 @@ class Column {
 
         // TODO comment
         for (let item of advance.reductions[TOK] || []) {
-          let length = item.rule.symbols.length
+          let length = item.rule.dot //symbols.length
           if (length === 0) {
             nextColumn.addReduction(node, item.rule.target, 0)
           }
@@ -138,7 +138,7 @@ class Column {
 
       // TODO comment
       for (let item of advance.reductions[TOK] || []) {
-        let length = item.rule.symbols.length
+        let length = item.rule.dot //symbols.length
         if (length !== 0) {
           nextColumn.addReduction(start, item.rule.target, length)
         }
@@ -154,7 +154,7 @@ class Column {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
       let { start, target, length } = reduction
-      console.log(TOK, start.id, target, length)
+      console.log(TOK, '?twvuxyz'[start.id], target, length)
 
       let set = start.traverse(Math.max(0, length - 1))
       for (let begin of set) {
@@ -190,7 +190,7 @@ class Column {
          */
         if (length > 0) {
           for (let item of nextState.reductions[TOK]) {
-            this.addReduction(begin, item.rule.target, item.rule.symbols.length)
+            this.addReduction(begin, item.rule.target, item.rule.dot) //symbols.length)
           }
         }
       }
