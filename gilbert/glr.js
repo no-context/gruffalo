@@ -18,35 +18,35 @@ class Node {
 
   addEdge(node) {
     if (!(node.id in this.edgesById)) {
-      this.edges.push(node)
-      this.edgesById[node.id] = true
-      return true
+      let edge = new Edge(node)
+      this.edges.push(edge)
+      this.edgesById[node.id] = edge
+      return edge
     }
-    return false
+    return this.edgesById[node.id]
   }
 
   // TODO: test
   // nb. length can be out-of-bounds (return [])
+  // or zero (return [this])
   traverse(length) {
-    let set = [this]
+    let paths = [{ begin: this, path: [] }]
+
+    // TODO use linked list of Edges here.
 
     for ( ; length--; ) {
-      let newSet = []
-      let byState = {}
-      for (var i = set.length; i--; ) {
-        let edges = set[i].edges
+      let newPaths = []
+      for (var i = paths.length; i--; ) {
+        let { begin, path } = paths[i]
+        let edges = begin.edges
         for (var j = edges.length; j--; ) {
-          let stateIndex = edges[j].label.index
-          if (stateIndex in byState) {
-            continue
-          }
-          byState[stateIndex] = true
-          newSet.push(edges[j])
+          let edge = edges[j]
+          newPaths.push({ begin: edge.node, path: path.concat([edge]) })
         }
       }
-      set = newSet
+      paths = newPaths
     }
-    return set
+    return paths
   }
 
   debug() {
@@ -60,6 +60,39 @@ class Node {
   }
 }
 Node.highestId = 0
+
+
+class Edge {
+  constructor(node) {
+    this.node = node
+
+    this.derivations = []
+  }
+
+  /*
+   * The RNGLR paper uses Rekers for better memory efficiency.
+   * Use Tomita's SPPF algorithm since it's simpler & faster
+   */
+  addDerivation(target, edges) {
+    let children = []
+    for (var i = edges.length; i--; ) {
+      children.push(edges[i])
+    }
+
+    this.derivations.push({ target, children })
+    if (this.derivations.length > 1) {
+      throw 'wow'
+    }
+
+    console.log(this.debug())
+  }
+
+  debug() {
+    let d = this.derivations[0]
+    if (!d) return '???'
+    return '(' + d.target + ' ' + d.children.map(x => x.debug()) + ')'
+  }
+}
 
 
 class Shift {
@@ -125,12 +158,14 @@ class Column {
       if (nextColumn.byState[advance.index]) {
         // existing node
         let node = nextColumn.byState[advance.index] // node: Node = w
-        node.addEdge(start)
+        let edge = node.addEdge(start)
+        edge.derivations.push({ target: TOK, children: [] })
 
       } else {
         // new node
         let node = nextColumn.addNode(advance) // node: Node = w
-        node.addEdge(start)
+        let edge = node.addEdge(start)
+        edge.derivations.push({ target: TOK, children: [] })
 
         // TODO comment
         for (let item of advance.reductions[TOK] || []) {
@@ -161,7 +196,9 @@ class Column {
 
       let set = start.traverse(Math.max(0, length - 1))
 
-      for (let begin of set) { // begin: Node = u
+      for (let p of set) {
+        let { begin, path } = p // begin: Node = u
+
         // begin.label: State = k
         let nextState = begin.label.transitions[target] // nextState: State = l
         if (!nextState) continue
@@ -170,16 +207,16 @@ class Column {
         if (nextState.index in this.byState) {
           // existing node
           node = this.byState[nextState.index] // node: Node = w
-          node.addEdge(begin) // create an edge from w to u
-          // console.log('link', node.name, begin.name)
+          let edge = node.addEdge(begin) // create an edge from w to u
+
+          edge.addDerivation(target, path)
 
         } else {
           // new node
           node = this.addNode(nextState) // node: Node = w
-          // console.log('made', node.name)
-          node.addEdge(begin) // create an edge (w, u)
-          // console.log('link', node.name, begin.name)
+          let edge = node.addEdge(begin) // create an edge (w, u)
 
+          edge.addDerivation(target, path)
 
           /*
            * record all reductions (of length >0)
@@ -233,7 +270,7 @@ function parse(startState, lex) {
 
   var TOKEN = lex()
   let startColumn = new Column(TOKEN.type)
-  startColumn.addNode(startState)
+  let startNode = startColumn.addNode(startState)
   for (let item of startState.reductions[TOKEN.type] || []) {
     let length = item.rule.symbols.length
     startColumn.addReduction(start, item.rule.target, length)
@@ -259,7 +296,7 @@ function parse(startState, lex) {
     }
 
     column.reduce()
-    // console.log(column.debug())
+    console.log(column.debug())
     // console.log(column.reductions)
 
     TOKEN = lex()
@@ -269,13 +306,17 @@ function parse(startState, lex) {
   }
 
   column.reduce()
-  // console.log(column.debug())
+  console.log(column.debug())
 
   let finalNode = column.byState[acceptingState.index]
   if (!finalNode) {
       throw new Error('Unexpected end of input')
   }
-  // console.log('success!')
+
+  let rootEdge = finalNode.edgesById[startNode.id]
+  console.log(rootEdge.debug())
+
+  console.log('success!')
   return column
 }
 
