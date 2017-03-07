@@ -46,9 +46,9 @@ class Node {
 
   debug() {
     var r = ''
-    r += '  ' + '?twvuxyz'[this.id] + ': s' + this.label.index + ' {\n'
+    r += '  ' + '?btwvuxyz'[this.id] + ' (s' + this.label.index + ') {\n'
     for (let link of this.edges) {
-      r += '    => ' + '?twvuxyz'[link.id] + '\n'
+      r += '    => ' + '?btwvuxyz'[link.id] + '\n'
     }
     r += '  }'
     return r
@@ -119,28 +119,26 @@ class Column {
 
       if (nextColumn.byState[advance.index]) {
         // existing node
-        let node = nextColumn.byState[advance.index] // node = w
+        let node = nextColumn.byState[advance.index] // node: Node = w
         node.addEdge(start)
 
       } else {
         // new node
-        let node = nextColumn.addNode(advance)
+        let node = nextColumn.addNode(advance) // node: Node = w
         node.addEdge(start)
 
         // TODO comment
         for (let item of advance.reductions[TOK] || []) {
-          let length = item.rule.dot //symbols.length
-          if (length === 0) {
-            nextColumn.addReduction(node, item.rule.target, 0)
+          if (item.dot === 0) {
+            nextColumn.addReduction(node, item.rule.target, 0) // (w, B, 0)
           }
         }
       }
 
       // TODO comment
       for (let item of advance.reductions[TOK] || []) {
-        let length = item.rule.dot //symbols.length
-        if (length !== 0) {
-          nextColumn.addReduction(start, item.rule.target, length)
+        if (item.dot !== 0) {
+          nextColumn.addReduction(start, item.rule.target, item.dot) // (v, B, t)
         }
       }
     }
@@ -153,32 +151,38 @@ class Column {
     for (var i = 0; i < this.reductions.length; i++) {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
-      let { start, target, length } = reduction
-      console.log(TOK, '?twvuxyz'[start.id], target, length)
+      let { start, target, length } = reduction // start: Node = w, target = X, length: Int = m
+      console.log(TOK, '?btwvuxyz'[start.id], target, length)
 
       let set = start.traverse(Math.max(0, length - 1))
-      for (let begin of set) {
-        let nextState = begin.label.transitions[target]
+
+      console.log(set.map(n => '?btwvuxyz'[n.id]))
+      console.log(start.traverse(1))
+
+      for (let begin of set) { // begin: Node = u
+        // begin.label: State = k
+        let nextState = begin.label.transitions[target] // nextState: State = l
         if (!nextState) continue
 
         if (nextState.index in this.byState) {
           // existing node
-          let node = this.byState[nextState.index]
-          node.addEdge(begin)
+          let node = this.byState[nextState.index] // node: Node = w
+          node.addEdge(begin) // create an edge from w to u
 
         } else {
           // new node
-          let node = this.addNode(nextState)
-          node.addEdge(begin)
+          let node = this.addNode(nextState) // node: Node = w
+          node.addEdge(begin) // create an edge (w, u)
 
           /*
            * record all reductions (of length >0)
            * together with the second node along the path
            * which is `node`, since the `start` of a Reduction is the second node... ?!
            */
-          for (let item of nextState.reductions[TOK]) {
-            if (item.rule.symbols.length === 0) {
-            this.addReduction(node, item.rule.target, 0)
+          for (let item of nextState.reductions[TOK]) { // lookup l
+            if (item.dot === 0) {
+              // item.rule.target = B
+              this.addReduction(node, item.rule.target, 0) // (w, B, 0)
             }
           }
         }
@@ -189,8 +193,11 @@ class Column {
          * to check those against the new path
          */
         if (length > 0) {
-          for (let item of nextState.reductions[TOK]) {
-            this.addReduction(begin, item.rule.target, item.rule.dot) //symbols.length)
+          for (let item of nextState.reductions[TOK]) { // lookup l
+            if (item.dot > 0) {
+              // item.rule.target = B
+              this.addReduction(begin, item.rule.target, item.dot) // (u, B, t)
+            }
           }
         }
       }
@@ -237,6 +244,7 @@ function parse(startState, lex) {
     count++
 
     // check column is non-empty
+    // TODO: check shifts length instead.
     if (Object.keys(column.byState).length === 0) {
       debugger
       throw new Error('Syntax error')

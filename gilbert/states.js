@@ -25,16 +25,19 @@ class State {
     this.items.push(item)
     if (item.isAccepting) {
       this.accept = item
-    }
-    if (item.isRightNullable(this.grammar)) {
-      // LR1 is complete, or right nullable after dot
-      let set = this.reductions[item.lookahead] = this.reductions[item.lookahead] || []
-      set.push(item)
-    }
-    if (item.wants !== undefined) {
-      var set = this.wants[item.wants]
-      if (!set) { set = this.wants[item.wants] = [] }
-      set.push(item)
+    } else {
+      // TODO are accept/reduce conflicts possible?
+
+      if (item.isRightNullable(this.grammar)) {
+        // LR1 is complete, or right nullable after dot
+        let set = this.reductions[item.lookahead] = this.reductions[item.lookahead] || []
+        set.push(item)
+      }
+      if (item.wants !== undefined) {
+        var set = this.wants[item.wants]
+        if (!set) { set = this.wants[item.wants] = [] }
+        set.push(item)
+      }
     }
   }
 
