@@ -22,6 +22,7 @@ class Node {
   }
 
   // TODO: test
+  // nb. length can be out-of-bounds (return [])
   traverse(length) {
     let set = [this]
 
@@ -102,7 +103,6 @@ class Column {
   }
 
   addReduction(start, target, length) {
-    console.log('red')
     let reduction = new Reduction(start, target, length) // TODO opt
     if (reduction.hash in this.uniqueReductions) {
       return
@@ -110,25 +110,17 @@ class Column {
     this.reductions.push(this.uniqueReductions[reduction.hash] = reduction)
   }
 
-  shift(nextToken) {
-    let TOKEN = this.token
-    let nextColumn = new Column(nextToken)
+  shift(nextColumn) {
+    let TOK = nextColumn.token // is .type
 
     for (var i = 0; i < this.shifts.length; i++) {
       let shift = this.shifts[i]
-      let { start, advance } = shift // start = v, advance = k
+      let { start, advance } = shift // start: Node = v, advance: State = k
 
       if (nextColumn.byState[advance.index]) {
         // existing node
         let node = nextColumn.byState[advance.index] // node = w
         node.addEdge(start)
-
-        for (let item of advance.reductions[nextToken]) {
-          let length = item.rule.symbols.length
-          if (length !== 0) {
-            nextColumn.addReduction(start, item.rule.target, length)
-          }
-        }
 
       } else {
         // new node
@@ -136,8 +128,7 @@ class Column {
         node.addEdge(start)
 
         // TODO comment
-        console.log(advance.reductions, nextToken)
-        for (let item of advance.reductions[nextToken] || []) {
+        for (let item of advance.reductions[TOK] || []) {
           let length = item.rule.symbols.length
           if (length === 0) {
             nextColumn.addReduction(node, item.rule.target, 0)
@@ -146,11 +137,10 @@ class Column {
       }
 
       // TODO comment
-      console.log(advance.reductions, nextToken)
-      for (let item of advance.reductions[nextToken] || []) {
+      for (let item of advance.reductions[TOK] || []) {
         let length = item.rule.symbols.length
         if (length !== 0) {
-          this.addReduction(start, item.rule.target, length)
+          nextColumn.addReduction(start, item.rule.target, length)
         }
       }
     }
@@ -158,12 +148,13 @@ class Column {
   }
 
   reduce() {
-    let TOKEN = this.token
+    let TOK = this.token
 
     for (var i = 0; i < this.reductions.length; i++) {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
       let { start, target, length } = reduction
+      console.log(TOK, start.id, target, length)
 
       let set = start.traverse(Math.max(0, length - 1))
       for (let begin of set) {
@@ -185,7 +176,7 @@ class Column {
            * together with the second node along the path
            * which is `node`, since the `start` of a Reduction is the second node... ?!
            */
-          for (let item of state.reductions[TOKEN]) {
+          for (let item of nextState.reductions[TOK]) {
             if (item.rule.symbols.length === 0) {
             this.addReduction(node, item.rule.target, 0)
             }
@@ -198,26 +189,13 @@ class Column {
          * to check those against the new path
          */
         if (length > 0) {
-          for (let item of state.reductions[TOKEN]) {
+          for (let item of nextState.reductions[TOK]) {
             this.addReduction(begin, item.rule.target, item.rule.symbols.length)
           }
         }
       }
       // TODO
     }
-  }
-
-  /*
-   *
-   * shift()        -- a_i+1
-   * then reduce()  -- a_i+1
-   */
-  process(token) {
-    let nextColumn = this.shift(token)
-    while (nextColumn.reductions.length) {
-      nextColumn.reduce()
-    }
-    return nextColumn
   }
 
   debug() {
@@ -238,24 +216,25 @@ function parse(startState, lex) {
 
   // TODO handle empty input
 
-  let startColumn = new Column(undefined)
-  TOKEN = lex()
-  startColumn.token = TOKEN.type
+  var TOKEN = lex()
+  let startColumn = new Column(TOKEN.type)
   startColumn.addNode(startState)
-  for (let item of startState.reductions[TOKEN] || []) {
+  for (let item of startState.reductions[TOKEN.type] || []) {
     let length = item.rule.symbols.length
     startColumn.addReduction(start, item.rule.target, length)
   }
+
+  startColumn.reduce()
   console.log(startColumn.debug())
+  console.log(startColumn.reductions)
+
   TOKEN = lex()
-  var column = startColumn.process(TOKEN.type)
+  var column = new Column(TOKEN.type)
+  startColumn.shift(column)
 
   let count = 0
-  var prev
   while (TOKEN.type !== LR1.EOF) {
     count++
-
-    console.log(column.debug())
 
     // check column is non-empty
     if (Object.keys(column.byState).length === 0) {
@@ -263,13 +242,18 @@ function parse(startState, lex) {
       throw new Error('Syntax error')
     }
 
-    prev = column
-    // TODO don't advance here
+    column.reduce()
+    console.log(column.debug())
+    console.log(column.reductions)
+
     TOKEN = lex()
-    column = column.process(TOKEN.type)
+    var nextColumn = new Column(TOKEN.type)
+    column.shift(nextColumn)
+    column = nextColumn
   }
+
+  column.reduce()
   console.log(column.debug())
-  console.log(column)
 
   let finalNode = column.byState[acceptingState]
   if (!finalNode) {

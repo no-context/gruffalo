@@ -14,7 +14,7 @@ class State {
     this.index = null
 
     this.transitions = {}
-    this.reductions = [] // TODO { lookahead -> List of States }
+    this.reductions = {}
     // TODO separate nullReductions
     this.accept = null
     this.incoming = []
@@ -25,11 +25,13 @@ class State {
     this.items.push(item)
     if (item.isAccepting) {
       this.accept = item
-    } else if (item.isRightNullable(this.grammar)) {
+    }
+    if (item.isRightNullable(this.grammar)) {
       // LR1 is complete, or right nullable after dot
       let set = this.reductions[item.lookahead] = this.reductions[item.lookahead] || []
       set.push(item)
-    } else {
+    }
+    if (item.wants !== undefined) {
       var set = this.wants[item.wants]
       if (!set) { set = this.wants[item.wants] = [] }
       set.push(item)
@@ -50,16 +52,13 @@ class State {
       let after = item.rule.symbols.slice(item.dot + 1)
       let lookahead = grammar.firstTerminal(after.concat([item.lookahead]))
 
-      // TODO help
-      if (lookahead['$null']) {
-        delete lookahead['$null']
-        lookahead[LR1.EOF] = true
-      }
+      // TODO do reductions with $null lookahead always apply?
 
       var spawned = predicted[item.wants]
       if (!spawned) { spawned = predicted[item.wants] = {} }
 
       for (var key in lookahead) {
+        if (key === '$null') { continue }
         if (!spawned[key]) {
           let newItems = spawned[key] = []
           for (let rule of (grammar.get(item.wants) || [])) {
@@ -103,7 +102,7 @@ class State {
       }
     }
     for (let match in this.transitions) {
-      r += '  [' + match + '] -> s' + this.transitions[match].index + '\n'
+      r += '  [' + match + '] -> push s' + this.transitions[match].index + '\n'
     }
 
     for (let item of this.items) {
