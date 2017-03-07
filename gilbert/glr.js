@@ -8,10 +8,12 @@ class Node {
     this.edges = []
     this.edgesByState = {}
     // data?
+
+    this.id = ++Node.highestId
   }
 
   addEdge(state) {
-    if (state.index in this.edgesByState) {
+    if (!(state.index in this.edgesByState)) {
       this.edges.push(state)
       this.edgesByState[state.index] = true
       return true
@@ -21,35 +23,37 @@ class Node {
 
   // TODO: test
   traverse(length) {
-    if (length === 0) { throw 'oops' }
-
-    let set = []
-    var edges = this.edges
-    for (var i = 0; i < edges.length; i++) {
-      let node = edges[i]
-      set.push({ begin: node, first: node })
-    }
+    let set = [this]
 
     for ( ; length--; ) {
       let newSet = []
-      // let byState = {}
+      let byState = {}
       for (var i = newSet.length; i--; ) {
-        var edges = begin.edges
-        let { begin, first } = newSet[i]
+        var edges = newSet[i].edges
         for (var j = edges.length; j--; ) {
           let stateIndex = edges[j].label.index
           if (stateIndex in byState) {
             continue
           }
-          // newSet.push(byState[stateIndex] = edges[j])
-          newSet.push({ begin: edges[j], first: first })
+          newSet.push(byState[stateIndex] = edges[j])
         }
       }
       set = newSet
     }
     return set
   }
+
+  debug() {
+    var r = ''
+    r += '  ' + this.id + ': s' + this.label.index + ' {\n'
+    for (let link of this.edges) {
+      r += '    => ' + link.id + ': s' + link.label.index + '\n'
+    }
+    r += '  }'
+    return r
+  }
 }
+Node.highestId = 0
 
 
 class Shift {
@@ -71,13 +75,13 @@ class Reduction {
 
 
 class Column {
-  constructor() {
+  constructor(token) {
     this.shifts = []
     this.reductions = []
     this.uniqueReductions = {}
     this.byState = {} // State.index -> Node
 
-    this.token = null
+    this.token = token
   }
 
   addNode(state) {
@@ -98,6 +102,7 @@ class Column {
   }
 
   addReduction(start, target, length) {
+    console.log('red')
     let reduction = new Reduction(start, target, length) // TODO opt
     if (reduction.hash in this.uniqueReductions) {
       return
@@ -105,23 +110,23 @@ class Column {
     this.reductions.push(this.uniqueReductions[reduction.hash] = reduction)
   }
 
-  shift() {
+  shift(nextToken) {
     let TOKEN = this.token
-    let nextColumn = new Column()
+    let nextColumn = new Column(nextToken)
 
     for (var i = 0; i < this.shifts.length; i++) {
       let shift = this.shifts[i]
-      let { start, advance } = shift // start = v, advance = k 
+      let { start, advance } = shift // start = v, advance = k
 
       if (nextColumn.byState[advance.index]) {
         // existing node
         let node = nextColumn.byState[advance.index] // node = w
         node.addEdge(start)
 
-        for (let item of advance.reductions[TOKEN]) {
+        for (let item of advance.reductions[nextToken]) {
           let length = item.rule.symbols.length
           if (length !== 0) {
-            this.addReduction(start, item.rule.target, length)
+            nextColumn.addReduction(start, item.rule.target, length)
           }
         }
 
@@ -131,16 +136,18 @@ class Column {
         node.addEdge(start)
 
         // TODO comment
-        for (let item of advance.reductions[TOKEN] || []) {
+        console.log(advance.reductions, nextToken)
+        for (let item of advance.reductions[nextToken] || []) {
           let length = item.rule.symbols.length
           if (length === 0) {
-            this.addReduction(node, item.rule.target, 0)
+            nextColumn.addReduction(node, item.rule.target, 0)
           }
         }
       }
 
       // TODO comment
-      for (let item of advance.reductions[TOKEN] || []) {
+      console.log(advance.reductions, nextToken)
+      for (let item of advance.reductions[nextToken] || []) {
         let length = item.rule.symbols.length
         if (length !== 0) {
           this.addReduction(start, item.rule.target, length)
@@ -149,7 +156,7 @@ class Column {
     }
     return nextColumn
   }
-  
+
   reduce() {
     let TOKEN = this.token
 
@@ -158,10 +165,10 @@ class Column {
       delete this.uniqueReductions[reduction.hash]
       let { start, target, length } = reduction
 
-      let set = Math.max(0, length - 1)
-      for (let path of set) {
-        let { begin, first } = path
+      let set = start.traverse(Math.max(0, length - 1))
+      for (let begin of set) {
         let nextState = begin.label.transitions[target]
+        if (!nextState) continue
 
         if (nextState.index in this.byState) {
           // existing node
@@ -173,7 +180,7 @@ class Column {
           let node = this.addNode(nextState)
           node.addEdge(begin)
 
-          /* 
+          /*
            * record all reductions (of length >0)
            * together with the second node along the path
            * which is `node`, since the `start` of a Reduction is the second node... ?!
@@ -185,7 +192,7 @@ class Column {
           }
         }
 
-        /* 
+        /*
          * we're creating a new path
          * so we need to make sure we record valid reductions (of length >0)
          * to check those against the new path
@@ -205,12 +212,23 @@ class Column {
    * shift()        -- a_i+1
    * then reduce()  -- a_i+1
    */
-  process() {
-    let nextColumn = this.shift()
+  process(token) {
+    let nextColumn = this.shift(token)
     while (nextColumn.reductions.length) {
       nextColumn.reduce()
     }
     return nextColumn
+  }
+
+  debug() {
+    var r = ''
+    r += 'col [\n'
+    for (let stateIndex of Object.keys(this.byState)) {
+      let node = this.byState[stateIndex]
+      r += node.debug() + '\n'
+    }
+    r += ']'
+    return r
   }
 }
 
@@ -228,23 +246,30 @@ function parse(startState, lex) {
     let length = item.rule.symbols.length
     startColumn.addReduction(start, item.rule.target, length)
   }
-  var column = startColumn.process()
+  console.log(startColumn.debug())
+  TOKEN = lex()
+  var column = startColumn.process(TOKEN.type)
 
   let count = 0
   var prev
   while (TOKEN.type !== LR1.EOF) {
     count++
+
+    console.log(column.debug())
+
     // check column is non-empty
     if (Object.keys(column.byState).length === 0) {
       debugger
       throw new Error('Syntax error')
     }
 
-    TOKEN = lex()
-    column.token = TOKEN.type
     prev = column
-    column = column.process()
-  } 
+    // TODO don't advance here
+    TOKEN = lex()
+    column = column.process(TOKEN.type)
+  }
+  console.log(column.debug())
+  console.log(column)
 
   let finalNode = column.byState[acceptingState]
   if (!finalNode) {

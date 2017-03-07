@@ -4,7 +4,6 @@ const {
 } = require('./grammar')
 const {
   generateStates,
-  logStates,
   State,
 } = require('./states')
 

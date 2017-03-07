@@ -47,9 +47,14 @@ class State {
         continue
       }
 
-      //let lookahead = item.wantsLookahead(grammar)
       let after = item.rule.symbols.slice(item.dot + 1)
       let lookahead = grammar.firstTerminal(after.concat([item.lookahead]))
+
+      // TODO help
+      if (lookahead['$null']) {
+        delete lookahead['$null']
+        lookahead[LR1.EOF] = true
+      }
 
       var spawned = predicted[item.wants]
       if (!spawned) { spawned = predicted[item.wants] = {} }
@@ -88,13 +93,36 @@ class State {
     return this.transitions[symbol] = statesByHash[hash] = next
   }
 
-  log() {
-    console.log(this.items.map(x => x.toString()).join('\n'))
+  debug() {
+    // return this.items.map(x => x.toString()).join('\n')
+    var r = ''
+    r += 's' + this.index + '\n'
+    for (let lookahead in this.reductions) {
+      for (let item of this.reductions[lookahead]) {
+        r += '  [' + lookahead + '] -> reduce <' + item.rule + '>\n'
+      }
+    }
+    for (let match in this.transitions) {
+      r += '  [' + match + '] -> s' + this.transitions[match].index + '\n'
+    }
+
+    for (let item of this.items) {
+      r += item.toString() + '\n'
+
+      if (item.rule.isAccepting) {
+        r += '  [$] -> accept\n'
+      }
+    }
+    return r
   }
 }
 
 
 function generateStates(g) {
+  if (g.start === undefined) {
+    throw new Error('grammar needs a start non-terminal')
+  }
+
   // TODO: $acc ignores this processor
   let accept = new Rule('$acc', [g.start], x => x)
   accept.isAccepting = true
@@ -133,18 +161,19 @@ function logStates(states) {
     console.log('s' + state.index)
 
     for (let item of state.items) {
-      let r = item.toString()
-      while (r.length < 50) { r += ' ' }
+      let r = ''
+      r += item.toString() + '\n'
 
-      if (item.wants === undefined) {
-        if (item.rule.isAccepting) {
-          r += ' accept'
-        } else {
-          // reduction
-          r += ' reduce <' + item.rule + '>'
-        }
-      } else {
-        r += ' -> s' + state.transitions[item.wants].index
+      if (item.rule.isAccepting) {
+        r += '  [$] -> accept\n'
+      }
+
+      for (let rule of state.reductions[item.lookahead] || []) {
+        r += '  [' + item.lookahead + '] -> reduce <' + item.rule + '>\n'
+      }
+
+      if (state.transitions[item.wants]) {
+        r += '  [' + item.wants + '] -> s' + state.transitions[item.wants].index
       }
       console.log(r)
     }
@@ -155,7 +184,6 @@ function logStates(states) {
 
 module.exports = {
   State,
-  logStates,
   generateStates,
 }
 

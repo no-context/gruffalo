@@ -8,6 +8,7 @@ class Rule {
       build = (...args) => [target, args]
     }
     this.symbols = symbols
+      if (symbols.length > 0 && symbols[0] === undefined) { throw new Error() }
     this.target = target
     this.build = build
     this._items = {}
@@ -91,7 +92,7 @@ class LR1 {
   }
 }
 LR1.highestId = 0
-LR1.EOF = '$EOF'
+LR1.EOF = '$'
 
 
 class Grammar {
