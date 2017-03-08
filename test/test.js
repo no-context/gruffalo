@@ -26,7 +26,7 @@ describe('compiler', () => {
 
     check(read('test/test1.json'))
     check(read('test/test2.json'))
-    // check(read('test/sample1k.json')) // too big for expect() to handle!
+    check(read('test/sample1k.json')) // too big for expect() to handle!
   })
 
 

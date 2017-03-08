@@ -13,7 +13,8 @@ class Node {
   }
 
   get name() {
-    return '?btwvuxyz'[this.id]
+    return 'n' + this.id
+    return '?btwvuxyzacdefghijklmnopqrs'[this.id]
   }
 
   addEdge(node) {
@@ -30,9 +31,7 @@ class Node {
   // nb. length can be out-of-bounds (return [])
   // or zero (return [this])
   traverse(length) {
-    let paths = [{ begin: this, path: [] }]
-
-    // TODO use linked list of Edges here.
+    let paths = [{ begin: this, path: null }]
 
     for ( ; length--; ) {
       let newPaths = []
@@ -41,7 +40,7 @@ class Node {
         let edges = begin.edges
         for (var j = edges.length; j--; ) {
           let edge = edges[j]
-          newPaths.push({ begin: edge.node, path: path.concat([edge]) })
+          newPaths.push({ begin: edge.node, path: new LList(edge.data, path) })
         }
       }
       paths = newPaths
@@ -53,7 +52,7 @@ class Node {
     var r = ''
     r += '  ' + this.name + ' (s' + this.label.index + ') {\n'
     for (let link of this.edges) {
-      r += '    => ' + link.name + '\n'
+      r += '    => ' + link.node.name + '\n'
     }
     r += '  }'
     return r
@@ -62,40 +61,51 @@ class Node {
 Node.highestId = 0
 
 
+class LList {
+  constructor(head, tail) {
+    this.head = head
+    this.tail = tail
+  }
+
+  toArray() {
+    let out = []
+    let l = this
+    do {
+      out.push(l.head)
+    } while (l = l.tail)
+    return out
+  }
+}
+
+
 class Edge {
   constructor(node) {
     this.node = node
 
-    this.derivations = []
+    this.data = null
   }
 
   /*
    * The RNGLR paper uses Rekers for better memory efficiency.
    * Use Tomita's SPPF algorithm since it's simpler & faster
    */
-  addDerivation(rule, edges) {
-    let children = []
-    for (var i = edges.length; i--; ) {
-      children.push(edges[i].derivations[0])
+  addDerivation(rule, path, firstEdge) {
+    let children = path ? path.toArray() : []
+    if (firstEdge) {
+      children.push(firstEdge.data)
     }
 
-    console.log('' + rule, children) //.map(edge => edge.derivations[0]))
+    // console.log('' + rule, children)
     let data = rule.build.apply(null, children)
 
-    this.derivations.push(data) //{ target: rule.target, children })
-    if (this.derivations.length > 1) {
+    if (this.data !== null) {
       throw 'wow'
     }
-
-    console.log(this.debug())
+    this.data = data
   }
 
   debug() {
-    return this.derivations[0]
-
-    let d = this.derivations[0]
-    if (!d) return '???'
-    return '(' + d.target + ' ' + d.children.map(x => x.debug()) + ')'
+    return this.data
   }
 }
 
@@ -109,11 +119,12 @@ class Shift {
 
 
 class Reduction {
-  constructor(start, rule, length) {
-    this.firstEdge = start // Edge
+  constructor(start, rule, length, firstEdge) {
+    this.start = start // Node
     this.rule = rule // Rule
     this.length = length // int
-    this.hash = start.node.id + '$' + this.target + '$' + this.length
+    this.firstEdge = firstEdge // Edge
+    this.hash = start.id + '$' + this.rule.id + '$' + this.length
   }
 }
 
@@ -146,8 +157,8 @@ class Column {
     return node
   }
 
-  addReduction(start, target, length) {
-    let reduction = new Reduction(start, target, length) // TODO opt
+  addReduction(start, target, length, firstEdge) {
+    let reduction = new Reduction(start, target, length, firstEdge) // TODO opt
     if (reduction.hash in this.uniqueReductions) {
       return
     }
@@ -168,19 +179,19 @@ class Column {
         // existing node
         let node = nextColumn.byState[advance.index] // node: Node = w
         edge = node.addEdge(start)
-        edge.derivations.push(DATA)
+        edge.data = DATA
 
       } else {
         // new node
         let node = nextColumn.addNode(advance) // node: Node = w
         edge = node.addEdge(start)
-        edge.derivations.push(DATA)
+        edge.data = DATA
 
         // TODO comment
         for (let item of advance.reductions[TOK] || []) {
           if (item.dot === 0) {
             // TODO ???
-            nextColumn.addReduction({ node: node, derivations: [null] }, item.rule, 0) // (w, B, 0)
+            nextColumn.addReduction(node, item.rule, 0) // (w, B, 0)
           }
         }
       }
@@ -188,7 +199,7 @@ class Column {
       // TODO comment
       for (let item of advance.reductions[TOK] || []) {
         if (item.dot !== 0) {
-          nextColumn.addReduction(edge, item.rule, item.dot) // (v, B, t)
+          nextColumn.addReduction(start, item.rule, item.dot, edge) // (v, B, t)
         }
       }
     }
@@ -202,9 +213,8 @@ class Column {
     for (var i = 0; i < this.reductions.length; i++) {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
-      let { firstEdge, rule, length } = reduction // length: Int = m
+      let { start, rule, length, firstEdge } = reduction // length: Int = m
       let target = rule.target // target = X
-      let start = firstEdge.node // start: Node = w
       // console.log('(', start.name, target, length, ')')
 
       let set = start.traverse(Math.max(0, length - 1))
@@ -222,26 +232,23 @@ class Column {
           // existing node
           node = this.byState[nextState.index] // node: Node = w
           edge = node.addEdge(begin) // create an edge from w to u
-
-          edge.addDerivation(rule, path.concat([firstEdge]))
+          edge.addDerivation(rule, path, firstEdge)
 
         } else {
           // new node
           node = this.addNode(nextState) // node: Node = w
           edge = node.addEdge(begin) // create an edge (w, u)
-
-          edge.addDerivation(rule, path.concat([firstEdge]))
+          edge.addDerivation(rule, path, firstEdge)
 
           /*
-           * record all reductions (of length >0)
+           * record all reductions (of length 0)
            * together with the second node along the path
            * which is `node`, since the `start` of a Reduction is the second node... ?!
            */
           for (let item of nextState.reductions[TOK] || []) { // lookup l
             if (item.dot === 0) {
               // item.rule.target = B
-              // edge: node
-              this.addReduction({ node: node, derivations: [null] }, item.rule, 0) // (w, B, 0)
+              this.addReduction(node, item.rule, 0) // (w, B, 0)
             }
           }
         }
@@ -255,8 +262,7 @@ class Column {
           for (let item of nextState.reductions[TOK] || []) { // lookup l
             if (item.dot > 0) {
               // item.rule.target = B
-              // edge: begin
-              this.addReduction(edge, item.rule, item.dot) // (u, B, t)
+              this.addReduction(begin, item.rule, item.dot, edge) // (u, B, t)
             }
           }
         }
@@ -301,18 +307,17 @@ function parse(startState, lex) {
   startColumn.shift(column)
 
   let count = 0
-  while (TOKEN !== LR1.EOF) {
+  while (TOKEN.type !== LR1.EOF) {
     count++
 
     // check column is non-empty
     // TODO: check shifts length instead.
     if (Object.keys(column.byState).length === 0) {
-      debugger
       throw new Error('Syntax error')
     }
 
     column.reduce()
-    console.log(column.debug())
+    // console.log(column.debug())
     // console.log(column.reductions)
 
     TOKEN = lex()
@@ -322,7 +327,7 @@ function parse(startState, lex) {
   }
 
   column.reduce()
-  console.log(column.debug())
+  // console.log(column.debug())
 
   let finalNode = column.byState[acceptingState.index]
   if (!finalNode) {
@@ -330,10 +335,8 @@ function parse(startState, lex) {
   }
 
   let rootEdge = finalNode.edgesById[startNode.id]
-  console.log(rootEdge.debug())
 
-  console.log('success!')
-  return column
+  return rootEdge.data
 }
 
 module.exports = {
