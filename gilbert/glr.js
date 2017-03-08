@@ -73,13 +73,16 @@ class Edge {
    * The RNGLR paper uses Rekers for better memory efficiency.
    * Use Tomita's SPPF algorithm since it's simpler & faster
    */
-  addDerivation(target, edges) {
+  addDerivation(rule, edges) {
     let children = []
     for (var i = edges.length; i--; ) {
-      children.push(edges[i])
+      children.push(edges[i].derivations[0])
     }
 
-    this.derivations.push({ target, children })
+    console.log('' + rule, children) //.map(edge => edge.derivations[0]))
+    let data = rule.build.apply(null, children)
+
+    this.derivations.push(data) //{ target: rule.target, children })
     if (this.derivations.length > 1) {
       throw 'wow'
     }
@@ -88,6 +91,8 @@ class Edge {
   }
 
   debug() {
+    return this.derivations[0]
+
     let d = this.derivations[0]
     if (!d) return '???'
     return '(' + d.target + ' ' + d.children.map(x => x.debug()) + ')'
@@ -104,11 +109,11 @@ class Shift {
 
 
 class Reduction {
-  constructor(start, target, length) {
-    this.start = start // Node
-    this.target = target // str
+  constructor(start, rule, length) {
+    this.firstEdge = start // Edge
+    this.rule = rule // Rule
     this.length = length // int
-    this.hash = start + '$' + this.target + '$' + this.length
+    this.hash = start.node.id + '$' + this.target + '$' + this.length
   }
 }
 
@@ -131,10 +136,11 @@ class Column {
     this.byState[state.index] = node
 
     /* if new node can shift next token, add to shift queue */
-    if (this.token in state.transitions) {
+    let TOK = this.token.type
+    if (TOK in state.transitions) {
       this.shifts.push({
         start: node,
-        advance: state.transitions[this.token],
+        advance: state.transitions[TOK],
       })
     }
     return node
@@ -149,28 +155,32 @@ class Column {
   }
 
   shift(nextColumn) {
-    let TOK = nextColumn.token // is .type
+    let TOKEN = nextColumn.token // is .type
+    let TOK = TOKEN.type
+    let DATA = this.token
 
     for (var i = 0; i < this.shifts.length; i++) {
       let shift = this.shifts[i]
       let { start, advance } = shift // start: Node = v, advance: State = k
 
+      let edge
       if (nextColumn.byState[advance.index]) {
         // existing node
         let node = nextColumn.byState[advance.index] // node: Node = w
-        let edge = node.addEdge(start)
-        edge.derivations.push({ target: TOK, children: [] })
+        edge = node.addEdge(start)
+        edge.derivations.push(DATA)
 
       } else {
         // new node
         let node = nextColumn.addNode(advance) // node: Node = w
-        let edge = node.addEdge(start)
-        edge.derivations.push({ target: TOK, children: [] })
+        edge = node.addEdge(start)
+        edge.derivations.push(DATA)
 
         // TODO comment
         for (let item of advance.reductions[TOK] || []) {
           if (item.dot === 0) {
-            nextColumn.addReduction(node, item.rule.target, 0) // (w, B, 0)
+            // TODO ???
+            nextColumn.addReduction({ node: node, derivations: [null] }, item.rule, 0) // (w, B, 0)
           }
         }
       }
@@ -178,7 +188,7 @@ class Column {
       // TODO comment
       for (let item of advance.reductions[TOK] || []) {
         if (item.dot !== 0) {
-          nextColumn.addReduction(start, item.rule.target, item.dot) // (v, B, t)
+          nextColumn.addReduction(edge, item.rule, item.dot) // (v, B, t)
         }
       }
     }
@@ -186,16 +196,20 @@ class Column {
   }
 
   reduce() {
-    let TOK = this.token
+    let TOKEN = this.token
+    let TOK = TOKEN.type
 
     for (var i = 0; i < this.reductions.length; i++) {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
-      let { start, target, length } = reduction // start: Node = w, target = X, length: Int = m
+      let { firstEdge, rule, length } = reduction // length: Int = m
+      let target = rule.target // target = X
+      let start = firstEdge.node // start: Node = w
       // console.log('(', start.name, target, length, ')')
 
       let set = start.traverse(Math.max(0, length - 1))
 
+      let edge
       for (let p of set) {
         let { begin, path } = p // begin: Node = u
 
@@ -207,16 +221,16 @@ class Column {
         if (nextState.index in this.byState) {
           // existing node
           node = this.byState[nextState.index] // node: Node = w
-          let edge = node.addEdge(begin) // create an edge from w to u
+          edge = node.addEdge(begin) // create an edge from w to u
 
-          edge.addDerivation(target, path)
+          edge.addDerivation(rule, path.concat([firstEdge]))
 
         } else {
           // new node
           node = this.addNode(nextState) // node: Node = w
-          let edge = node.addEdge(begin) // create an edge (w, u)
+          edge = node.addEdge(begin) // create an edge (w, u)
 
-          edge.addDerivation(target, path)
+          edge.addDerivation(rule, path.concat([firstEdge]))
 
           /*
            * record all reductions (of length >0)
@@ -226,7 +240,8 @@ class Column {
           for (let item of nextState.reductions[TOK] || []) { // lookup l
             if (item.dot === 0) {
               // item.rule.target = B
-              this.addReduction(node, item.rule.target, 0) // (w, B, 0)
+              // edge: node
+              this.addReduction({ node: node, derivations: [null] }, item.rule, 0) // (w, B, 0)
             }
           }
         }
@@ -240,7 +255,8 @@ class Column {
           for (let item of nextState.reductions[TOK] || []) { // lookup l
             if (item.dot > 0) {
               // item.rule.target = B
-              this.addReduction(begin, item.rule.target, item.dot) // (u, B, t)
+              // edge: begin
+              this.addReduction(edge, item.rule, item.dot) // (u, B, t)
             }
           }
         }
@@ -269,7 +285,7 @@ function parse(startState, lex) {
   // TODO handle empty input
 
   var TOKEN = lex()
-  let startColumn = new Column(TOKEN.type)
+  let startColumn = new Column(TOKEN)
   let startNode = startColumn.addNode(startState)
   for (let item of startState.reductions[TOKEN.type] || []) {
     let length = item.rule.symbols.length
@@ -281,11 +297,11 @@ function parse(startState, lex) {
   // console.log(startColumn.reductions)
 
   TOKEN = lex()
-  var column = new Column(TOKEN.type)
+  var column = new Column(TOKEN)
   startColumn.shift(column)
 
   let count = 0
-  while (TOKEN.type !== LR1.EOF) {
+  while (TOKEN !== LR1.EOF) {
     count++
 
     // check column is non-empty
@@ -300,7 +316,7 @@ function parse(startState, lex) {
     // console.log(column.reductions)
 
     TOKEN = lex()
-    var nextColumn = new Column(TOKEN.type)
+    var nextColumn = new Column(TOKEN)
     column.shift(nextColumn)
     column = nextColumn
   }
