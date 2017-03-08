@@ -284,9 +284,9 @@ class Column {
 }
 
 
-function parse(startState, lex) {
+function parse(startState, target, lex) {
   // TODO don't hardcode grammar start symbol
-  let acceptingState = startState.transitions['JSONText']
+  let acceptingState = startState.transitions[target]
 
   // TODO handle empty input
 

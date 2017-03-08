@@ -106,6 +106,9 @@ class Grammar {
     this._symbolFirst = {}
   }
 
+  static fromNearley() {
+  }
+
   add(rule) {
     this.rules.push(rule)
     if (!(rule instanceof Rule)) throw 'not a rule'
