@@ -5,6 +5,7 @@ class Rule {
       throw 'symbols must be a list'
     }
     if (typeof build !== 'function') {
+      // TODO opt
       build = eval('(function (...args) { return [' + JSON.stringify(target) + ', args] })')
     }
     this.symbols = symbols
@@ -122,12 +123,26 @@ class Grammar {
 
     let g = new Grammar({ start: name(compiled.ParserStart) })
     compiled.ParserRules.forEach(r => {
-      function build() {
-        // TODO this is probably slow
-        return r.postProcess.call(null, arguments)
+      var build
+      if (r.postprocess) {
+        let args = []
+        let names = []
+        for (var i = 0; i < r.symbols.length; i++) {
+          let arg = 'd' + i
+          args.push(arg)
+          names.push(r.symbols[i].literal ? arg + '.value' : arg)
+        }
+
+        var postprocess = r.postprocess
+        var source = ''
+        source += '(function(' + args.join(', ') + ') {\n'
+        source += 'return postprocess([' + names.join(', ') + '])\n'
+        source += '})\n'
+        build = eval(source)
       }
+
       let symbols = r.symbols.map(sym => sym.test ? regExp(sym) : sym.literal ? sym.literal : name(sym))
-      g.add(new Rule(name(r.name), symbols, r.postProcess))
+      g.add(new Rule(name(r.name), symbols, build))
     })
     return g
   }

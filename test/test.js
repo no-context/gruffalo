@@ -10,7 +10,8 @@ function read(filename) {
 function stringLexer(input) {
   var index = 0
   return function lex() {
-    return { type: input[index++] || '$' }
+    let c = input[index++]
+    return { type: c || '$', value: c }
   }
 }
 
@@ -37,13 +38,13 @@ describe('compiler', () => {
 
   test('right-nullable example', () => {
     let grammar = new gilbert.Grammar({ start: 'S' })
-    grammar.add(new gilbert.Rule('S', ['a', 'S', 'A']))
-    grammar.add(new gilbert.Rule('S', []))
+    grammar.add(new gilbert.Rule('S', ['a', 'S', 'A'], (a, b, c) => [a.value, b, c]))
+    grammar.add(new gilbert.Rule('S', [])) // TODO run nullable postprocessors
     grammar.add(new gilbert.Rule('A', []))
     let p = gilbert.parserFor(grammar)
 
     let lex = stringLexer('aa')
-    expect(p(lex)).toEqual(["S", [{"type":"a"}, ["S",[{"type":"a"}]]]])
+    expect(p(lex)).toEqual(['a', ['a', undefined, undefined], undefined])
   })
 
   test('whitespace', () => {
@@ -68,8 +69,12 @@ describe('compiler', () => {
     //console.log(grammar.debug())
     let p = gilbert.parserFor(grammar)
 
-    let lex = stringLexer("say 'hello' for 10 secs")
-    expect(p(lex)).toEqual(["S", [{"type":"a"}, ["S",[{"type":"a"}]]]])
+    expect(p(stringLexer("stamp"))).toEqual(['stampCostume'])
+    expect(p(stringLexer("say 2"))).toEqual(['say:', 2])
+    expect(p(stringLexer("say 'hello'"))).toEqual(['say:', 'hello'])
+    expect(p(stringLexer("set foo to 2 * e^ of ( foo * -0.05 + 0.5) * (1 - e ^ of (foo * -0.05 + 0.5))"))).toEqual(
+      ["setVar:to:","foo",["*",["*",2,["computeFunction:of:","e ^",["+",["*",["readVariable","foo"],-0.05],0.5]]],["-",1,["computeFunction:of:","e ^",["+",["*",["readVariable","foo"],-0.05],0.5]]]]]
+    )
   })
 
 })
