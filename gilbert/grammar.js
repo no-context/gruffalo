@@ -5,7 +5,7 @@ class Rule {
       throw 'symbols must be a list'
     }
     if (typeof build !== 'function') {
-      build = (...args) => [target, args]
+      build = eval('(function (...args) { return [' + JSON.stringify(target) + ', args] })')
     }
     this.symbols = symbols
       if (symbols.length > 0 && symbols[0] === undefined) { throw new Error() }
@@ -106,7 +106,26 @@ class Grammar {
     this._symbolFirst = {}
   }
 
-  static fromNearley() {
+  static fromNearley(compiled) {
+    function name(name) {
+      return '$' + name
+    }
+
+    function regExp(sym) {
+      // TODO regex classes
+      return '/'
+    }
+
+    let g = new Grammar({ start: name(compiled.ParserStart) })
+    compiled.ParserRules.forEach(r => {
+      function build() {
+        // TODO this is probably slow
+        return r.postProcess.call(null, arguments)
+      }
+      let symbols = r.symbols.map(sym => sym.test ? regExp(sym) : sym.literal ? sym.literal : name(sym))
+      g.add(new Rule(name(r.name), symbols, r.postProcess))
+    })
+    return g
   }
 
   add(rule) {
@@ -122,7 +141,7 @@ class Grammar {
     return this.ruleSets[target]
   }
 
-  log() {
+  debug() {
     let rules = []
     Object.keys(this.ruleSets).forEach(target => {
       let ruleSet = this.ruleSets[target]
@@ -130,7 +149,7 @@ class Grammar {
         rules.push(rule.toString())
       })
     })
-    console.log(rules.join('\n'))
+    return rules.join('\n')
   }
 
   isTerminal(sym) {

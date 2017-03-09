@@ -54,7 +54,7 @@ class Block {
             source += op.block.generate(calls, str, elidable)
           } else {
             calls[op.block] = true
-            source += name + '()\n'
+            source += op.block + '()\n'
           }
           break
         case 'exec':

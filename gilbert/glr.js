@@ -247,6 +247,7 @@ class Column {
            */
           for (let item of nextState.reductions[TOK] || []) { // lookup l
             if (item.dot === 0) {
+              // console.log(node.name, item.rule.toString(), 0)
               // item.rule.target = B
               this.addReduction(node, item.rule, 0) // (w, B, 0)
             }
@@ -313,7 +314,7 @@ function parse(startState, target, lex) {
     // check column is non-empty
     // TODO: check shifts length instead.
     if (Object.keys(column.byState).length === 0) {
-      throw new Error('Syntax error')
+      throw new Error('Syntax error @ ' + count + ': ' + JSON.stringify(TOKEN))
     }
 
     column.reduce()

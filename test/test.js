@@ -46,4 +46,28 @@ describe('compiler', () => {
     expect(p(lex)).toEqual(["S", [{"type":"a"}, ["S",[{"type":"a"}]]]])
   })
 
+  test('whitespace', () => {
+    let grammar = new gilbert.Grammar({ start: 'E' })
+    grammar.add(new gilbert.Rule('E', ['(', '_', 'E', '_', ')'], function () { return [ arguments[2] ] }))
+    grammar.add(new gilbert.Rule('E', ['1'], () => 1))
+    grammar.add(new gilbert.Rule('_', []))
+    grammar.add(new gilbert.Rule('_', ['_', ' '])) // TODO we have a null-reduction bug here.
+    // the LR(1) parsing automaton does not enjoy (null) lookahead!
+    let p = gilbert.parserFor(grammar)
+    console.log(grammar.debug())
+
+    //expect(p(stringLexer("(( (1)))"))).toEqual([[[1]]])
+    expect(p(stringLexer("(( (1) ) )"))).toEqual([[[1]]])
+  })
+
+  test('tosh.ne', () => {
+    let toshGrammar = require('./tosh.js')
+    let grammar = gilbert.Grammar.fromNearley(toshGrammar)
+    //console.log(grammar.debug())
+    let p = gilbert.parserFor(grammar)
+
+    let lex = stringLexer("say 'hello' for 10 secs")
+    expect(p(lex)).toEqual(["S", [{"type":"a"}, ["S",[{"type":"a"}]]]])
+  })
+
 })

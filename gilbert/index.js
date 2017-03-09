@@ -5,7 +5,7 @@ const { parse } = require('./glr')
 function parserFor(grammar) {
   let states = generateStates(grammar)
   let start = grammar.start
-  // states.forEach(state => console.log(state.debug() + '\n'))
+  // console.log(states.map(state => state.debug()).join('\n'))
 
   return function(lex) {
     return parse(states[0], start, lex)
