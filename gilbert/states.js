@@ -6,6 +6,17 @@ const {
 } = require('./grammar')
 
 
+function dotStr(x) {
+  x = x.toString();
+  if (/^[0-9]+$/.test(x)) return x;
+  if (/^[a-zA-Zε]+$/.test(x)) return x;
+  x = x.replace(/"/g, '\\"');
+  x = x.replace(/\n/g, '\\l') + '\\l'
+  return '"' + x + '"';
+}
+
+
+
 class State {
   constructor(grammar) {
     this.grammar = grammar
@@ -83,6 +94,9 @@ class State {
       next.addItem(lr0)
       ids.push(lr0.id)
     }
+
+    // TODO merge states with same items, but different lookahead ?
+
     let hash = ids.join(':')
     if (statesByHash[hash]) {
       statesByHash[hash].incoming.push(this)
@@ -114,6 +128,17 @@ class State {
       if (item.rule.isAccepting) {
         r += '  [$] -> accept\n'
       }
+    }
+    return r
+  }
+
+  toDot() {
+    var r = ''
+    let label = 's' + this.index + '\\n' + this.items.map(item => item.toString()).join('\n')
+    r += this.index + ' [shape=box align=left label=' + dotStr(label) + ']\n'
+    for (let match in this.transitions) {
+      let other = this.transitions[match]
+      r += this.index + ' -> ' + other.index + ' [label=' + dotStr('«' + match + '»') + ']\n'
     }
     return r
   }

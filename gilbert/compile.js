@@ -295,7 +295,8 @@ function go(state) {
 
 function compile(grammar) {
   let states = generateStates(grammar)
-  // logStates(states)
+  // console.log(states.map(state => state.debug()).join('\n'))
+  console.log('digraph G {\nrankdir=LR\n' + states.map(state => state.toDot()).join('\n') + '\n}')
   let start = states[0]
 
   function str(x) {
@@ -340,7 +341,7 @@ function compile(grammar) {
   'use strict';
   return function (lex) {
 
-  function error(id) { throw new Error(id); }
+  function error(id) { throw new Error(id + ' ' + TOKEN.type); }
   \n`
 
   var count = 0

@@ -314,7 +314,7 @@ function parse(startState, target, lex) {
     // check column is non-empty
     // TODO: check shifts length instead.
     if (Object.keys(column.byState).length === 0) {
-      throw new Error('Syntax error @ ' + count + ': ' + JSON.stringify(TOKEN))
+      throw new Error('Syntax error @ ' + count + ': ' + JSON.stringify(TOKEN.type))
     }
 
     column.reduce()

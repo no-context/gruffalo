@@ -54,9 +54,11 @@ describe('compiler', () => {
     grammar.add(new gilbert.Rule('_', ['_', ' '])) // TODO we have a null-reduction bug here.
     // the LR(1) parsing automaton does not enjoy (null) lookahead!
     let p = gilbert.parserFor(grammar)
-    console.log(grammar.debug())
 
-    //expect(p(stringLexer("(( (1)))"))).toEqual([[[1]]])
+    expect(grammar.firstTerminalFor('_')).toEqual({ '$null': true, ' ': true })
+    expect(grammar.firstTerminal(['_', ')'])).toEqual({ '$null': true, ' ': true, ')': true })
+
+    expect(p(stringLexer("(( (1)))"))).toEqual([[[1]]])
     expect(p(stringLexer("(( (1) ) )"))).toEqual([[[1]]])
   })
 

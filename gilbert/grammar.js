@@ -56,6 +56,10 @@ class LR1 {
     if (typeof lookahead !== 'string') { throw new Error(JSON.stringify(lookahead)) }
   }
 
+  get hash() {
+    return this.rule.id + '$' + this.dot
+  }
+
   get isAccepting() {
     return this.rule.isAccepting && this.wants === undefined && this.lookahead == LR1.EOF
   }
@@ -157,7 +161,7 @@ class Grammar {
   }
 
   // TODO: test
-  firstTerminalFor(symbol, stack) {
+  firstTerminalFor(symbol, seenRules) {
     if (this._symbolFirst[symbol]) {
       return this._symbolFirst[symbol]
     }
@@ -167,28 +171,31 @@ class Grammar {
       return { [symbol]: true }
     }
 
-    stack = stack || {}
-    if (stack[symbol]) {
-      return {}
-    }
-    stack[symbol] = true
+    seenRules = seenRules || {}
 
     let result = {}
     var hasNull = false
     for (var i = 0; i < rules.length; i++) {
-      let symbols = rules[i].symbols
-      let terminals = this.firstTerminal(symbols, stack)
+      let rule = rules[i]
+      if (seenRules[rule.id]) {
+        continue
+      }
+      seenRules[rule.id] = true
+
+      let symbols = rule.symbols
+      let terminals = this.firstTerminal(symbols, seenRules)
       for (var key in terminals) {
         result[key] = true
       }
+
+      delete seenRules[rule.id]
     }
 
-    delete stack[symbol]
     return this._symbolFirst[symbol] = result
   }
 
   // TODO: test
-  firstTerminal(symbols, stack) {
+  firstTerminal(symbols, seenRules) {
     if (symbols.length === 0) {
       return { '$null': true }
     }
@@ -200,7 +207,7 @@ class Grammar {
 
     let result = {}
     for (var i = 0; i < symbols.length; i++) {
-      let terminals = this.firstTerminalFor(symbols[i], stack)
+      let terminals = this.firstTerminalFor(symbols[i], seenRules)
       for (var key in terminals) {
         result[key] = true
       }

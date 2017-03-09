@@ -6,7 +6,7 @@ const fs = require('fs')
 
 
 // let input = fs.readFileSync('test/sample10k.json')
-let input = '(( (1)))'
+let input = '(( (1) ))'
 
 // const { grammar, tokenizer } = require('../test/json')
 const gilbert = require('../gilbert')
