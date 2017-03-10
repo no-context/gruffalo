@@ -10,15 +10,30 @@ function read(filename) {
   return fs.readFileSync(filename, 'utf-8')
 }
 
+function stringLexer(input) {
+  var index = 0
+  return function lex() {
+    let c = input[index++]
+    return { type: c || '$', value: c }
+  }
+}
 
 
 // JSON parser
 
 const { grammar, tokenizer } = require('./json')
-let p = gilbert.parserFor(grammar)
+let jp = gilbert.parserFor(grammar)
 function jsonParser(input) {
   tokenizer.initString(input)
-  return p(tokenizer.getNextToken.bind(tokenizer))
+  return jp(tokenizer.getNextToken.bind(tokenizer))
+}
+
+// tosh parser
+
+let toshGrammar = gilbert.Grammar.fromNearley(require('./tosh.js'))
+let tp = gilbert.parserFor(toshGrammar)
+function toshParser(input) {
+  return tp(stringLexer(input))
 }
 
 
@@ -73,6 +88,10 @@ addTest('nearley json', makeParser('examples/json.ne'), [
     Example.read('test/sample1k.json'),
 ]);
 */
+
+addTest('tosh', toshParser, [
+    new Example('ex1', 'set foo to 2 * e^ of ( foo * -0.05 + 0.5) * (1 - e ^ of (foo * -0.05 + 0.5))'),
+]);
 
 addTest('gilbert json', jsonParser, [
     // Example.read('test/test1.json'),
