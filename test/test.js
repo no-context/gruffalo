@@ -16,7 +16,7 @@ function stringLexer(input) {
 }
 
 
-describe('compiler', () => {
+describe('gilbert', () => {
 
   test('can parse JSON', () => {
     let { grammar, tokenizer } = require('./json')
@@ -63,6 +63,16 @@ describe('compiler', () => {
     expect(p(stringLexer("(( (1) ) )"))).toEqual([[[1]]])
   })
 
+  test('whitespace.ne', function() {
+    let whitespace = require('./whitespace.js')
+    let grammar = gilbert.Grammar.fromNearley(whitespace)
+    let p = gilbert.parserFor(grammar)
+
+    expect(p(stringLexer("(x)"))).toEqual(
+      [ [ [ '(', null, [ [ [ [ 'x' ] ] ] ], null, ')' ] ] ]
+    )
+  })
+
   test('tosh.ne', () => {
     let toshGrammar = require('./tosh.js')
     let grammar = gilbert.Grammar.fromNearley(toshGrammar)
@@ -76,5 +86,7 @@ describe('compiler', () => {
       ["setVar:to:","foo",["*",["*",2,["computeFunction:of:","e ^",["+",["*",["readVariable","foo"],-0.05],0.5]]],["-",1,["computeFunction:of:","e ^",["+",["*",["readVariable","foo"],-0.05],0.5]]]]]
     )
   })
+
+  // TODO: empty input?
 
 })
