@@ -22,7 +22,7 @@ function parserFor(grammar) {
 module.exports = {
   Grammar: require('./grammar').Grammar,
   Rule: require('./grammar').Rule,
-  compile: require('./compile').compile,
+  compile: require('./lr1').compile,
   parserFor,
 }
 
