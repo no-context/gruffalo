@@ -128,6 +128,10 @@ class Reduction {
   }
 }
 
+var TOK
+var DATA
+var NEXT
+var LENGTH
 
 class Column {
   constructor(token) {
@@ -165,43 +169,59 @@ class Column {
     this.reductions.push(this.uniqueReductions[reduction.hash] = reduction)
   }
 
+  push(advance, start, data) {
+    if (NEXT.byState[advance.index]) {
+      // existing node
+      var node = NEXT.byState[advance.index] // node: Node = w
+
+    } else {
+      // new node
+      var node = NEXT.addNode(advance) // node: Node = w
+
+      /*
+       * record all reductions (of length 0)
+       * together with the second node along the path
+       * which is `node`, since the `start` of a Reduction is the second node... ?!
+       */
+      for (let item of advance.reductions[TOK] || []) { // lookup l
+        if (item.dot === 0) {
+          NEXT.addReduction(node, item.rule, 0) // (w, B, 0)
+        }
+      }
+    }
+
+    var edge = node.addEdge(start)
+    if (data) {
+      edge.addDerivation(data.rule, data.path, data.firstEdge)
+    } else {
+      edge.data = DATA
+    }
+
+    /*
+     * we're creating a new path
+     * so we need to make sure we record valid reductions (of length >0)
+     * to check those against the new path
+     */
+    if (LENGTH > 0) {
+      for (let item of advance.reductions[TOK] || []) {
+        if (item.dot !== 0) {
+          NEXT.addReduction(start, item.rule, item.dot, edge) // (v, B, t)
+        }
+      }
+    }
+  }
+
   shift(nextColumn) {
     let TOKEN = nextColumn.token // is .type
-    let TOK = TOKEN.type
-    let DATA = this.token
+    TOK = TOKEN.type
+    DATA = this.token
+    NEXT = nextColumn
+    LENGTH = 1
 
     for (var i = 0; i < this.shifts.length; i++) {
       let shift = this.shifts[i]
       let { start, advance } = shift // start: Node = v, advance: State = k
-
-      let edge
-      if (nextColumn.byState[advance.index]) {
-        // existing node
-        let node = nextColumn.byState[advance.index] // node: Node = w
-        edge = node.addEdge(start)
-        edge.data = DATA
-
-      } else {
-        // new node
-        let node = nextColumn.addNode(advance) // node: Node = w
-        edge = node.addEdge(start)
-        edge.data = DATA
-
-        // TODO comment
-        for (let item of advance.reductions[TOK] || []) {
-          if (item.dot === 0) {
-            // TODO ???
-            nextColumn.addReduction(node, item.rule, 0) // (w, B, 0)
-          }
-        }
-      }
-
-      // TODO comment
-      for (let item of advance.reductions[TOK] || []) {
-        if (item.dot !== 0) {
-          nextColumn.addReduction(start, item.rule, item.dot, edge) // (v, B, t)
-        }
-      }
+      this.push(advance, start)
     }
     return nextColumn
   }
@@ -209,6 +229,7 @@ class Column {
   reduce() {
     let TOKEN = this.token
     let TOK = TOKEN.type
+    NEXT = this
 
     for (var i = 0; i < this.reductions.length; i++) {
       let reduction = this.reductions[i]
@@ -227,48 +248,9 @@ class Column {
         let nextState = begin.label.transitions[target] // nextState: State = l
         if (!nextState) continue
 
-        let node
-        if (nextState.index in this.byState) {
-          // existing node
-          node = this.byState[nextState.index] // node: Node = w
-          edge = node.addEdge(begin) // create an edge from w to u
-          edge.addDerivation(rule, path, firstEdge)
-
-        } else {
-          // new node
-          node = this.addNode(nextState) // node: Node = w
-          edge = node.addEdge(begin) // create an edge (w, u)
-          edge.addDerivation(rule, path, firstEdge)
-
-          /*
-           * record all reductions (of length 0)
-           * together with the second node along the path
-           * which is `node`, since the `start` of a Reduction is the second node... ?!
-           */
-          for (let item of nextState.reductions[TOK] || []) { // lookup l
-            if (item.dot === 0) {
-              // console.log(node.name, item.rule.toString(), 0)
-              // item.rule.target = B
-              this.addReduction(node, item.rule, 0) // (w, B, 0)
-            }
-          }
-        }
-
-        /*
-         * we're creating a new path
-         * so we need to make sure we record valid reductions (of length >0)
-         * to check those against the new path
-         */
-        if (length > 0) {
-          for (let item of nextState.reductions[TOK] || []) { // lookup l
-            if (item.dot > 0) {
-              // item.rule.target = B
-              this.addReduction(begin, item.rule, item.dot, edge) // (u, B, t)
-            }
-          }
-        }
+        LENGTH = length
+        this.push(nextState, begin, {rule, path, firstEdge})
       }
-      // TODO
     }
   }
 
