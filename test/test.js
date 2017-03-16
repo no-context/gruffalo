@@ -22,8 +22,8 @@ describe('gilbert', () => {
     let { grammar, tokenizer } = require('./json')
     let p = gilbert.parserFor(grammar)
     function parse(input) {
-      tokenizer.initString(input)
-      let lex = tokenizer.getNextToken.bind(tokenizer)
+      tokenizer.reset(input)
+      let lex = tokenizer.next.bind(tokenizer)
       return p(lex)
     }
 

@@ -15,5 +15,7 @@
     "jest": "^19.0.2",
     "nearley": "^2.7.14"
   },
-  "dependencies": {}
+  "dependencies": {
+    "moo": "file:../moo"
+  }
 }

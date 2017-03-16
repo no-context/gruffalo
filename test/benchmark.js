@@ -24,8 +24,8 @@ function stringLexer(input) {
 const { grammar, tokenizer } = require('./json')
 let jp = gilbert.parserFor(grammar)
 function jsonParser(input) {
-  tokenizer.initString(input)
-  return jp(tokenizer.getNextToken.bind(tokenizer))
+  tokenizer.reset(input)
+  return jp(tokenizer.next.bind(tokenizer))
 }
 
 // tosh parser
