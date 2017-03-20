@@ -142,15 +142,6 @@ var REDUCTIONS = new RSet()
 var NODES = {}
 var TOKEN
 
-function addNode(state) {
-  if (state.index in NODES) {
-    return NODES[state.index]
-  }
-  let node = new Node(state)
-  NODES[state.index] = node
-  return node
-}
-
 function push(advance, start) {
   if (NODES[advance.index]) {
     // existing node
@@ -158,7 +149,7 @@ function push(advance, start) {
 
   } else {
     // new node
-    var node = addNode(advance) // node: Node = w
+    var node = NODES[advance.index] = new Node(advance) // node: Node = w
 
     /*
      * record all reductions (of length 0)
@@ -254,7 +245,7 @@ function parse(startState, target, lex) {
   TOKEN = lex()
 
   NODES = {}
-  let startNode = addNode(startState)
+  let startNode = NODES[startState.index] = new Node(startState)
   for (let item of startState.reductions[TOKEN.type] || []) {
     let length = item.rule.symbols.length
     REDUCTIONS.add(start, item, null)
