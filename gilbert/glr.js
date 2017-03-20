@@ -245,8 +245,7 @@ function parse(startState, target, lex) {
   NODES = {}
   let startNode = NODES[startState.index] = new Node(startState)
   for (let item of startState.reductions[TOKEN.type] || []) {
-    let length = item.rule.symbols.length
-    REDUCTIONS.add(start, item, null)
+    REDUCTIONS.add(startNode, item, null) // TODO test this
   }
 
   var count = 0
