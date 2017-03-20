@@ -143,11 +143,9 @@ var NODES = {}
 var TOKEN
 
 function push(advance, start) {
-  if (NODES[advance.index]) {
-    // existing node
-    var node = NODES[advance.index] // node: Node = w
+  var node = NODES[advance.index]
 
-  } else {
+  if (!node) {
     // new node
     var node = NODES[advance.index] = new Node(advance) // node: Node = w
 
