@@ -31,8 +31,8 @@ class Node {
   // nb. length can be out-of-bounds (return [])
   // or zero (return [this])
   traverse(length, firstEdge) {
-    // assert(firstEdge.node === this)
-    let paths = [firstEdge ? new LList(firstEdge) : null]
+    // assert(firstEdge.head.node === this)
+    let paths = [firstEdge]
 
     for ( ; length--; ) {
       let newPaths = []
@@ -172,7 +172,7 @@ class Column {
        */
       for (let item of advance.reductions[TOK] || []) { // lookup l
         if (item.dot === 0) {
-          NEXT.reductions.add(node, item) // (w, B, 0)
+          NEXT.reductions.add(node, item, null) // (w, B, 0)
         }
       }
     }
@@ -187,7 +187,7 @@ class Column {
     if (LENGTH > 0) {
       for (let item of advance.reductions[TOK] || []) {
         if (item.dot !== 0) {
-          NEXT.reductions.add(start, item, edge) // (v, B, t)
+          NEXT.reductions.add(start, item, new LList(edge)) // (v, B, t)
         }
       }
     }
@@ -281,7 +281,7 @@ function parse(startState, target, lex) {
   let startNode = startColumn.addNode(startState)
   for (let item of startState.reductions[TOKEN.type] || []) {
     let length = item.rule.symbols.length
-    startColumn.reductions.add(start, item)
+    startColumn.reductions.add(start, item, null)
   }
   var column = startColumn
 
