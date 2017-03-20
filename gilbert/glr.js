@@ -279,25 +279,10 @@ function parse(startState, target, lex) {
     let length = item.rule.symbols.length
     startColumn.addReduction(start, item)
   }
+  var column = startColumn
 
-  startColumn.reduceAll()
-  // console.log(startColumn.debug())
-  // console.log(startColumn.reductions)
-
-  TOKEN = lex()
-  var column = new Column(TOKEN)
-  startColumn.shift(column)
-
-  let count = 0
-  while (TOKEN.type !== LR1.EOF) {
-    count++
-
-    // check column is non-empty
-    // TODO: check shifts length instead.
-    if (Object.keys(column.byState).length === 0) {
-      throw new Error('Syntax error @ ' + count + ': ' + JSON.stringify(TOKEN.type))
-    }
-
+  var count = 0
+  do {
     column.reduceAll()
     // console.log(column.debug())
     // console.log(column.reductions)
@@ -306,7 +291,13 @@ function parse(startState, target, lex) {
     var nextColumn = new Column(TOKEN)
     column.shift(nextColumn)
     column = nextColumn
-  }
+
+    // check column is non-empty
+    if (Object.keys(column.byState).length === 0) {
+      throw new Error('Syntax error @ ' + count + ': ' + JSON.stringify(TOKEN.type))
+    }
+    count++
+  } while (TOKEN.type !== LR1.EOF)
 
   column.reduceAll()
   // console.log(column.debug())
