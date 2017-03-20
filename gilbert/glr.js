@@ -170,7 +170,7 @@ class Column {
     this.reductions.push(this.uniqueReductions[reduction.hash] = reduction)
   }
 
-  push(advance, start, data) {
+  push(advance, start) {
     if (NEXT.byState[advance.index]) {
       // existing node
       var node = NEXT.byState[advance.index] // node: Node = w
@@ -191,12 +191,7 @@ class Column {
       }
     }
 
-    var edge = node.addEdge(start)
-    if (data) {
-      edge.addDerivation(data.rule, data.path, data.firstEdge)
-    } else {
-      edge.data = DATA
-    }
+    let edge = node.addEdge(start)
 
     /*
      * we're creating a new path
@@ -210,6 +205,8 @@ class Column {
         }
       }
     }
+
+    return edge
   }
 
   shift(nextColumn) {
@@ -222,7 +219,9 @@ class Column {
     for (var i = 0; i < this.shifts.length; i++) {
       let shift = this.shifts[i]
       let { start, advance } = shift // start: Node = v, advance: State = k
-      this.push(advance, start)
+
+      let edge = this.push(advance, start)
+      edge.data = DATA
     }
     return nextColumn
   }
@@ -252,7 +251,8 @@ class Column {
         if (!nextState) continue
 
         LENGTH = length
-        this.push(nextState, begin, {rule, path, firstEdge})
+        let edge = this.push(nextState, begin)
+        edge.addDerivation(rule, path, firstEdge)
       }
     }
   }
