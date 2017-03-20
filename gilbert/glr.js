@@ -31,16 +31,17 @@ class Node {
   // nb. length can be out-of-bounds (return [])
   // or zero (return [this])
   traverse(length) {
-    let paths = [{ begin: this, path: null }]
+    let paths = [null]
 
     for ( ; length--; ) {
       let newPaths = []
       for (var i = paths.length; i--; ) {
-        let { begin, path } = paths[i]
+        let path = paths[i]
+        let begin = path ? path.head.node : this
         let edges = begin.edges
         for (var j = edges.length; j--; ) {
           let edge = edges[j]
-          newPaths.push({ begin: edge.node, path: new LList(edge.data, path) })
+          newPaths.push(new LList(edge, path))
         }
       }
       paths = newPaths
@@ -71,7 +72,7 @@ class LList {
     let out = []
     let l = this
     do {
-      out.push(l.head)
+      out.push(l.head.data)
     } while (l = l.tail)
     return out
   }
@@ -241,8 +242,10 @@ class Column {
       let set = start.traverse(Math.max(0, length - 1))
 
       let edge
-      for (let p of set) {
-        let { begin, path } = p // begin: Node = u
+      for (let path of set) {
+        let begin = path ? path.head.node : start
+
+        // if (path) assert(begin === path.head.node)
 
         // begin.label: State = k
         let nextState = begin.label.transitions[target] // nextState: State = l
