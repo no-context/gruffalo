@@ -118,12 +118,11 @@ class Shift {
 
 
 class Reduction {
-  constructor(start, rule, length, firstEdge) {
+  constructor(start, item, firstEdge) {
     this.start = start // Node
-    this.rule = rule // Rule
-    this.length = length // int
+    this.item = item
     this.firstEdge = firstEdge // Edge
-    this.hash = start.id + '$' + this.rule.id + '$' + this.length
+    this.hash = start.id + '$' + item.id // TODO shouldn't firstEdge be included?
   }
 }
 
@@ -160,8 +159,8 @@ class Column {
     return node
   }
 
-  addReduction(start, target, length, firstEdge) {
-    let reduction = new Reduction(start, target, length, firstEdge) // TODO opt
+  addReduction(start, item, firstEdge) {
+    let reduction = new Reduction(start, item, firstEdge) // TODO opt
     if (reduction.hash in this.uniqueReductions) {
       return
     }
@@ -184,7 +183,7 @@ class Column {
        */
       for (let item of advance.reductions[TOK] || []) { // lookup l
         if (item.dot === 0) {
-          NEXT.addReduction(node, item.rule, 0) // (w, B, 0)
+          NEXT.addReduction(node, item) // (w, B, 0)
         }
       }
     }
@@ -199,7 +198,7 @@ class Column {
     if (LENGTH > 0) {
       for (let item of advance.reductions[TOK] || []) {
         if (item.dot !== 0) {
-          NEXT.addReduction(start, item.rule, item.dot, edge) // (v, B, t)
+          NEXT.addReduction(start, item, edge) // (v, B, t)
         }
       }
     }
@@ -232,7 +231,9 @@ class Column {
     for (var i = 0; i < this.reductions.length; i++) {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
-      let { start, rule, length, firstEdge } = reduction // length: Int = m
+      let { start, item, firstEdge } = reduction // length: Int = m
+      let length = item.dot
+      let rule = item.rule
       let target = rule.target // target = X
       // console.log('(', start.name, target, length, ')')
 
@@ -279,7 +280,7 @@ function parse(startState, target, lex) {
   let startNode = startColumn.addNode(startState)
   for (let item of startState.reductions[TOKEN.type] || []) {
     let length = item.rule.symbols.length
-    startColumn.addReduction(start, item.rule.target, length)
+    startColumn.addReduction(start, item)
   }
 
   startColumn.reduce()
