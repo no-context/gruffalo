@@ -119,6 +119,7 @@ class Reduction {
 }
 
 var TOK
+var GOTO
 var DATA
 var NEXT
 var LENGTH
@@ -188,8 +189,15 @@ class Column {
     return edge
   }
 
+  goSwitch(start) {
+    let advance = start.label.transitions[GOTO]
+    if (advance) {
+      return this.push(advance, start)
+    }
+  }
+
   shift(nextColumn) {
-    let VAL = this.token.type
+    GOTO = this.token.type
 
     let TOKEN = nextColumn.token // is .type
     TOK = TOKEN.type
@@ -200,9 +208,8 @@ class Column {
     let keys = Object.keys(this.byState)
     for (let index of keys) {
       let start = this.byState[index] // start: Node = v, advance: State = k
-      let advance = start.label.transitions[VAL]
-      if (advance) {
-        let edge = this.push(advance, start)
+      let edge = this.goSwitch(start)
+      if (edge) {
         edge.data = DATA
       }
     }
@@ -223,11 +230,11 @@ class Column {
       // if (path) assert(begin === path.head.node)
 
       // begin.label: State = k
-      let nextState = begin.label.transitions[target] // nextState: State = l
-      if (!nextState) continue
 
       LENGTH = length
-      let edge = this.push(nextState, begin)
+      GOTO = target
+      let edge = this.goSwitch(begin)
+      // assert(edge)
       edge.addDerivation(rule, path, firstEdge)
     }
   }
