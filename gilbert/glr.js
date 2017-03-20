@@ -109,33 +109,26 @@ class Edge {
 }
 
 
-class Reduction {
-  constructor(start, item, firstEdge) {
-    this.start = start // Node
-    this.item = item
-    this.firstEdge = firstEdge // Edge
-    this.hash = start.id + '$' + item.id // TODO shouldn't firstEdge be included?
-  }
-}
-
-
 // TODO how to implement this efficiently ?
 class RSet {
   constructor() {
-    this.reductions = {}
+    this.reductions = []
+    this.unique = {}
   }
 
   add(start, item, firstEdge) {
     let hash = start.id + '$' + item.id
-    this.reductions[hash] = {start, item, firstEdge}
+    if (!this.unique[hash]) {
+      this.reductions.push(this.unique[hash] = {start, item, firstEdge})
+    }
   }
 
   pop() {
-    for (var hash in this.reductions) {
-      let r = this.reductions[hash]
-      delete this.reductions[hash]
-      return r
-    }
+    let r = this.reductions.pop()
+    if (!r) return
+    let hash = r.start.id + '$' + r.item.id
+    delete this.unique[hash]
+    return r
   }
 }
 
