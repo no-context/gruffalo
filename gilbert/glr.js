@@ -42,7 +42,7 @@ class Node {
         let edges = begin.edges
         for (var j = edges.length; j--; ) {
           let edge = edges[j]
-          newPaths.push(new LList(edge, path))
+          newPaths.push(new Path(edge, path))
         }
       }
       paths = newPaths
@@ -63,7 +63,7 @@ class Node {
 Node.highestId = 0
 
 
-class LList {
+class Path {
   constructor(head, tail) {
     this.head = head
     this.tail = tail
@@ -187,7 +187,7 @@ class Column {
     if (LENGTH > 0) {
       for (let item of advance.reductions[TOK] || []) {
         if (item.dot !== 0) {
-          NEXT.reductions.add(start, item, new LList(edge)) // (v, B, t)
+          NEXT.reductions.add(start, item, new Path(edge)) // (v, B, t)
         }
       }
     }
