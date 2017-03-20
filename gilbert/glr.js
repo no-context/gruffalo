@@ -30,8 +30,9 @@ class Node {
   // TODO: test
   // nb. length can be out-of-bounds (return [])
   // or zero (return [this])
-  traverse(length) {
-    let paths = [null]
+  traverse(length, firstEdge) {
+    // assert(firstEdge.node === this)
+    let paths = [firstEdge ? new LList(firstEdge) : null]
 
     for ( ; length--; ) {
       let newPaths = []
@@ -90,11 +91,8 @@ class Edge {
    * The RNGLR paper uses Rekers for better memory efficiency.
    * Use Tomita's SPPF algorithm since it's simpler & faster
    */
-  addDerivation(rule, path, firstEdge) {
+  addDerivation(rule, path) {
     let children = path ? path.toArray() : []
-    if (firstEdge) {
-      children.push(firstEdge.data)
-    }
 
     // console.log('' + rule, children)
     let data = rule.build.apply(null, children)
@@ -238,7 +236,7 @@ class Column {
       let target = rule.target // target = X
       // console.log('(', start.name, target, length, ')')
 
-      let set = start.traverse(Math.max(0, length - 1))
+      let set = start.traverse(Math.max(0, length - 1), firstEdge)
 
       let edge
       for (let path of set) {
