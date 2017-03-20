@@ -223,7 +223,30 @@ class Column {
     return nextColumn
   }
 
-  reduce() {
+  reduce(item, start, firstEdge) {
+    let length = item.dot
+    let rule = item.rule
+    let target = rule.target // target = X
+    // console.log('(', start.name, target, length, ')')
+    let set = start.traverse(Math.max(0, length - 1), firstEdge)
+
+    let edge
+    for (let path of set) {
+      let begin = path ? path.head.node : start
+
+      // if (path) assert(begin === path.head.node)
+
+      // begin.label: State = k
+      let nextState = begin.label.transitions[target] // nextState: State = l
+      if (!nextState) continue
+
+      LENGTH = length
+      let edge = this.push(nextState, begin)
+      edge.addDerivation(rule, path, firstEdge)
+    }
+  }
+
+  reduceAll() {
     let TOKEN = this.token
     let TOK = TOKEN.type
     NEXT = this
@@ -232,27 +255,8 @@ class Column {
       let reduction = this.reductions[i]
       delete this.uniqueReductions[reduction.hash]
       let { start, item, firstEdge } = reduction // length: Int = m
-      let length = item.dot
-      let rule = item.rule
-      let target = rule.target // target = X
-      // console.log('(', start.name, target, length, ')')
 
-      let set = start.traverse(Math.max(0, length - 1), firstEdge)
-
-      let edge
-      for (let path of set) {
-        let begin = path ? path.head.node : start
-
-        // if (path) assert(begin === path.head.node)
-
-        // begin.label: State = k
-        let nextState = begin.label.transitions[target] // nextState: State = l
-        if (!nextState) continue
-
-        LENGTH = length
-        let edge = this.push(nextState, begin)
-        edge.addDerivation(rule, path, firstEdge)
-      }
+      this.reduce(item, start, firstEdge)
     }
   }
 
@@ -283,7 +287,7 @@ function parse(startState, target, lex) {
     startColumn.addReduction(start, item)
   }
 
-  startColumn.reduce()
+  startColumn.reduceAll()
   // console.log(startColumn.debug())
   // console.log(startColumn.reductions)
 
@@ -301,7 +305,7 @@ function parse(startState, target, lex) {
       throw new Error('Syntax error @ ' + count + ': ' + JSON.stringify(TOKEN.type))
     }
 
-    column.reduce()
+    column.reduceAll()
     // console.log(column.debug())
     // console.log(column.reductions)
 
@@ -311,7 +315,7 @@ function parse(startState, target, lex) {
     column = nextColumn
   }
 
-  column.reduce()
+  column.reduceAll()
   // console.log(column.debug())
 
   let finalNode = column.byState[acceptingState.index]
