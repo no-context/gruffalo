@@ -109,14 +109,6 @@ class Edge {
 }
 
 
-class Shift {
-  constructor(start, advance) {
-    this.start = start // Node
-    this.advance = advance // State
-  }
-}
-
-
 class Reduction {
   constructor(start, item, firstEdge) {
     this.start = start // Node
@@ -133,7 +125,6 @@ var LENGTH
 
 class Column {
   constructor(token) {
-    this.shifts = []
     this.reductions = []
     this.uniqueReductions = {}
     this.byState = {} // State.index -> Node
@@ -147,15 +138,6 @@ class Column {
     }
     let node = new Node(state)
     this.byState[state.index] = node
-
-    /* if new node can shift next token, add to shift queue */
-    let TOK = this.token.type
-    if (TOK in state.transitions) {
-      this.shifts.push({
-        start: node,
-        advance: state.transitions[TOK],
-      })
-    }
     return node
   }
 
@@ -207,18 +189,22 @@ class Column {
   }
 
   shift(nextColumn) {
+    let VAL = this.token.type
+
     let TOKEN = nextColumn.token // is .type
     TOK = TOKEN.type
     DATA = this.token
     NEXT = nextColumn
     LENGTH = 1
 
-    for (var i = 0; i < this.shifts.length; i++) {
-      let shift = this.shifts[i]
-      let { start, advance } = shift // start: Node = v, advance: State = k
-
-      let edge = this.push(advance, start)
-      edge.data = DATA
+    let keys = Object.keys(this.byState)
+    for (let index of keys) {
+      let start = this.byState[index] // start: Node = v, advance: State = k
+      let advance = start.label.transitions[VAL]
+      if (advance) {
+        let edge = this.push(advance, start)
+        edge.data = DATA
+      }
     }
     return nextColumn
   }
