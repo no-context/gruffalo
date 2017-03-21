@@ -17,6 +17,6 @@
     "nearley": "^2.8.0"
   },
   "dependencies": {
-    "moo": "file:../moo"
+    "moo": "^0.1.1"
   }
 }
