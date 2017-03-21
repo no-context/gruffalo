@@ -30,8 +30,11 @@ suite('json', () => {
   // benchmark('nearley', () => {
   // })
 
-  // benchmark('chevrotain', () => {
-  // })
+  const chev = require('./json/chevrotain')
+  benchmark('chevrotain', () => {
+    chev.jsonParser.input = chev.JsonLexer.tokenize(jsonFile).tokens
+    chev.jsonParser.json()
+  })
 
   // to show the futility of it all
   benchmark('JSON.parse', () => {
