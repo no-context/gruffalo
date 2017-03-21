@@ -5,7 +5,6 @@ const { LR1 } = require('./grammar')
 class Node {
   constructor(label) {
     this.label = label
-    this.edges = []
     this.edgesById = {}
     // data?
 
@@ -18,13 +17,11 @@ class Node {
   }
 
   addEdge(node) {
-    if (!(node.id in this.edgesById)) {
-      let edge = new Edge(node)
-      this.edges.push(edge)
-      this.edgesById[node.id] = edge
-      return edge
+    var edge = this.edgesById[node.id]
+    if (!edge) {
+      return this.edgesById[node.id] = new Edge(node)
     }
-    return this.edgesById[node.id]
+    return edge
   }
 
   // TODO: test
@@ -39,25 +36,16 @@ class Node {
       for (var i = paths.length; i--; ) {
         let path = paths[i]
         let begin = path ? path.head.node : this
-        let edges = begin.edges
-        for (var j = edges.length; j--; ) {
-          let edge = edges[j]
+        let edges = begin.edgesById
+        let keys = Object.keys(edges)
+        for (var j = keys.length; j--; ) {
+          let edge = edges[keys[j]]
           newPaths.push(new Path(edge, path))
         }
       }
       paths = newPaths
     }
     return paths
-  }
-
-  debug() {
-    var r = ''
-    r += '  ' + this.name + ' (s' + this.label.index + ') {\n'
-    for (let link of this.edges) {
-      r += '    => ' + link.node.name + '\n'
-    }
-    r += '  }'
-    return r
   }
 }
 Node.highestId = 0
