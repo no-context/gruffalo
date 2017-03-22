@@ -1,6 +1,7 @@
-Gilbert
-=======
+Gruffalo
+========
 
-![Gilbert the cat](.github/caillou.png)
+Parser generator.
 
+![The Gruffalo](.github/gruffalo.png)
 

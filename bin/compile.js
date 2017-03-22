@@ -2,10 +2,10 @@
 
 const fs = require('fs')
 
-const gilbert = require('../gilbert')
+const gruffalo = require('../gruffalo')
 
 let { grammar, tokenizer } = require('../test/json')
-let contents = gilbert.compile(grammar)
+let contents = gruffalo.compile(grammar)
 
 let name = 'jsonParser'
 

@@ -1,9 +1,9 @@
 {
-  "name": "gilbert",
+  "name": "gruffalo",
   "version": "0.1.0",
-  "description": "a parser generator: incredibly flexible but as fast as yacc",
-  "main": "gilbert/",
-  "repository": "https://github.com/tjvr/gilbert",
+  "description": "Parser generator",
+  "main": "gruffalo/",
+  "repository": "https://github.com/tjvr/gruffalo",
   "author": "Tim Radvan <tim@tjvr.org>",
   "license": "BSD-3-Clause",
   "scripts": {

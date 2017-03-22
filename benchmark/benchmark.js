@@ -14,15 +14,15 @@ function stringLexer(input) {
 
 suite('compile JSON', () => {
 
-  const gilbert = require('../gilbert')
+  const gruffalo = require('../gruffalo')
   const jsonGrammar = require('../test/json').grammar
 
-  const states = require('../gilbert/states')
+  const states = require('../gruffalo/states')
   benchmark('generateStates', () => {
     states.generateStates(jsonGrammar)
   })
 
-  const lr1 = require('../gilbert/lr1')
+  const lr1 = require('../gruffalo/lr1')
   benchmark('lr1 + generateStates', () => {
     lr1.compile(jsonGrammar)
   })
@@ -34,10 +34,10 @@ suite('compile JSON', () => {
 
 suite('compile tosh', () => {
 
-  const gilbert = require('../gilbert')
-  const toshGrammar = gilbert.Grammar.fromNearley(require('../test/tosh'))
+  const gruffalo = require('../gruffalo')
+  const toshGrammar = gruffalo.Grammar.fromNearley(require('../test/tosh'))
 
-  const states = require('../gilbert/states')
+  const states = require('../gruffalo/states')
   benchmark('generateStates', () => {
     states.generateStates(toshGrammar)
   })
@@ -51,15 +51,15 @@ suite('json', () => {
 
   let jsonFile = fs.readFileSync('test/sample1k.json', 'utf-8')
 
-  const gilbert = require('../gilbert')
+  const gruffalo = require('../gruffalo')
   const { grammar, tokenizer } = require('../test/json')
-  let jp = gilbert.parserFor(grammar)
-  benchmark('gilbert', () => {
+  let jp = gruffalo.parserFor(grammar)
+  benchmark('gruffalo', () => {
     tokenizer.reset(jsonFile)
     jp(tokenizer.next.bind(tokenizer))
   })
 
-  const lr1 = require('../gilbert/lr1')
+  const lr1 = require('../gruffalo/lr1')
   let pl = eval(lr1.compile(grammar))({})
   benchmark('lr1', () => {
     tokenizer.reset(jsonFile)
@@ -100,10 +100,10 @@ suite('tosh', () => {
   let toshFile = 'set foo to 2 * e^ of ( foo * -0.05 + 0.5) * (1 - e ^ of (foo * -0.05 + 0.5))'
   const toshNearleyGrammar = require('../test/tosh')
 
-  const gilbert = require('../gilbert')
-  let toshGrammar = gilbert.Grammar.fromNearley(toshNearleyGrammar)
-  let p = gilbert.parserFor(toshGrammar)
-  benchmark('gilbert', () => {
+  const gruffalo = require('../gruffalo')
+  let toshGrammar = gruffalo.Grammar.fromNearley(toshNearleyGrammar)
+  let p = gruffalo.parserFor(toshGrammar)
+  benchmark('gruffalo', () => {
     return p(stringLexer(toshFile))
   })
 

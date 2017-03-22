@@ -1,16 +1,16 @@
 (function(root, factory) {
   if (typeof module === 'object' && module.exports) {
-    module.exports = factory(require('../gilbert'))
+    module.exports = factory(require('../gruffalo'))
   } else {
-    root.jsonGrammar = factory(root.gilbert)
+    root.jsonGrammar = factory(root.gruffalo)
   }
-}(this, function(gilbert) {
+}(this, function(gruffalo) {
 
 const {
   Grammar,
   Rule,
   compile,
-} = gilbert
+} = gruffalo
 /*****************************************************************************/
 
 

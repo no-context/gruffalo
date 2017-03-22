@@ -9,14 +9,14 @@ let input = fs.readFileSync('test/test1.json')
 // let input = 'aa'
 
 const { grammar, tokenizer } = require('../test/json')
-const gilbert = require('../gilbert')
+const gruffalo = require('../gruffalo')
 
-let states = gilbert.generateStates(grammar)
+let states = gruffalo.generateStates(grammar)
 
 // states.forEach(state => console.log(state.debug() + '\n'))
 
 tokenizer.initString(input)
 let lex = tokenizer.getNextToken.bind(tokenizer)
 
-gilbert.parse(states[0], lex)
+gruffalo.parse(states[0], lex)
 

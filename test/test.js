@@ -1,7 +1,7 @@
 
 const fs = require('fs')
 
-const gilbert = require('../gilbert')
+const gruffalo = require('../gruffalo')
 
 function read(filename) {
   return fs.readFileSync(filename, 'utf-8')
@@ -16,11 +16,11 @@ function stringLexer(input) {
 }
 
 
-describe('gilbert', () => {
+describe('gruffalo', () => {
 
   test('can parse JSON', () => {
     let { grammar, tokenizer } = require('./json')
-    let p = gilbert.parserFor(grammar)
+    let p = gruffalo.parserFor(grammar)
     function parse(input) {
       tokenizer.reset(input)
       let lex = tokenizer.next.bind(tokenizer)
@@ -37,24 +37,24 @@ describe('gilbert', () => {
   })
 
   test('right-nullable example', () => {
-    let grammar = new gilbert.Grammar({ start: 'S' })
-    grammar.add(new gilbert.Rule('S', ['a', 'S', 'A'], (a, b, c) => [a.value, b, c]))
-    grammar.add(new gilbert.Rule('S', [])) // TODO run nullable postprocessors
-    grammar.add(new gilbert.Rule('A', []))
-    let p = gilbert.parserFor(grammar)
+    let grammar = new gruffalo.Grammar({ start: 'S' })
+    grammar.add(new gruffalo.Rule('S', ['a', 'S', 'A'], (a, b, c) => [a.value, b, c]))
+    grammar.add(new gruffalo.Rule('S', [])) // TODO run nullable postprocessors
+    grammar.add(new gruffalo.Rule('A', []))
+    let p = gruffalo.parserFor(grammar)
 
     let lex = stringLexer('aa')
     expect(p(lex)).toEqual(['a', ['a', undefined, undefined], undefined])
   })
 
   test('whitespace', () => {
-    let grammar = new gilbert.Grammar({ start: 'E' })
-    grammar.add(new gilbert.Rule('E', ['(', '_', 'E', '_', ')'], function () { return [ arguments[2] ] }))
-    grammar.add(new gilbert.Rule('E', ['1'], () => 1))
-    grammar.add(new gilbert.Rule('_', []))
-    grammar.add(new gilbert.Rule('_', ['_', ' '])) // TODO we have a null-reduction bug here.
+    let grammar = new gruffalo.Grammar({ start: 'E' })
+    grammar.add(new gruffalo.Rule('E', ['(', '_', 'E', '_', ')'], function () { return [ arguments[2] ] }))
+    grammar.add(new gruffalo.Rule('E', ['1'], () => 1))
+    grammar.add(new gruffalo.Rule('_', []))
+    grammar.add(new gruffalo.Rule('_', ['_', ' '])) // TODO we have a null-reduction bug here.
     // the LR(1) parsing automaton does not enjoy (null) lookahead!
-    let p = gilbert.parserFor(grammar)
+    let p = gruffalo.parserFor(grammar)
 
     expect(grammar.firstTerminalFor('_')).toEqual({ '$null': true, ' ': true })
     expect(grammar.firstTerminal(['_', ')'])).toEqual({ '$null': true, ' ': true, ')': true })
@@ -65,8 +65,8 @@ describe('gilbert', () => {
 
   test('whitespace.ne', function() {
     let whitespace = require('./whitespace.js')
-    let grammar = gilbert.Grammar.fromNearley(whitespace)
-    let p = gilbert.parserFor(grammar)
+    let grammar = gruffalo.Grammar.fromNearley(whitespace)
+    let p = gruffalo.parserFor(grammar)
 
     expect(p(stringLexer("(x)"))).toEqual(
       [ [ [ '(', null, [ [ [ [ 'x' ] ] ] ], null, ')' ] ] ]
@@ -75,9 +75,9 @@ describe('gilbert', () => {
 
   test('tosh.ne', () => {
     let toshGrammar = require('./tosh.js')
-    let grammar = gilbert.Grammar.fromNearley(toshGrammar)
+    let grammar = gruffalo.Grammar.fromNearley(toshGrammar)
     //console.log(grammar.debug())
-    let p = gilbert.parserFor(grammar)
+    let p = gruffalo.parserFor(grammar)
 
     expect(p(stringLexer("stamp"))).toEqual(['stampCostume'])
     expect(p(stringLexer("say 2"))).toEqual(['say:', 2])

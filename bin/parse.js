@@ -9,14 +9,14 @@ const fs = require('fs')
 let input = 'aa'
 
 // const { grammar, tokenizer } = require('../test/json')
-const gilbert = require('../gilbert')
+const gruffalo = require('../gruffalo')
 
-let grammar = new gilbert.Grammar({ start: 'S' })
-grammar.add(new gilbert.Rule('S', ['a', 'S', 'A']))
-grammar.add(new gilbert.Rule('S', []))
-grammar.add(new gilbert.Rule('A', []))
+let grammar = new gruffalo.Grammar({ start: 'S' })
+grammar.add(new gruffalo.Rule('S', ['a', 'S', 'A']))
+grammar.add(new gruffalo.Rule('S', []))
+grammar.add(new gruffalo.Rule('A', []))
 
-let p = gilbert.parserFor(grammar)
+let p = gruffalo.parserFor(grammar)
 
 // states.forEach(state => console.log(state.debug() + '\n'))
 
