@@ -296,7 +296,7 @@ function go(state) {
 function compile(grammar) {
   let states = generateStates(grammar)
   // console.log(states.map(state => state.debug()).join('\n'))
-  console.log('digraph G {\nrankdir=LR\n' + states.map(state => state.toDot()).join('\n') + '\n}')
+  // console.log('digraph G {\nrankdir=LR\n' + states.map(state => state.toDot()).join('\n') + '\n}')
   let start = states[0]
 
   function str(x) {

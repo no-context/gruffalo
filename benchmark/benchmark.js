@@ -24,7 +24,14 @@ suite('json', () => {
   let jp = gilbert.parserFor(grammar)
   benchmark('gilbert', () => {
     tokenizer.reset(jsonFile)
-    return jp(tokenizer.next.bind(tokenizer))
+    jp(tokenizer.next.bind(tokenizer))
+  })
+
+  const lr1 = require('../gilbert/lr1')
+  let pl = eval(lr1.compile(grammar))({})
+  benchmark('lr1', () => {
+    tokenizer.reset(jsonFile)
+    var x = pl(tokenizer.next.bind(tokenizer))
   })
 
   const nearley = require('nearley')
@@ -47,9 +54,11 @@ suite('json', () => {
   })
 
   // to show the futility of it all
+  /*
   benchmark('JSON.parse', () => {
     JSON.parse(jsonFile)
   })
+  */
 
 })
 
