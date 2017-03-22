@@ -27,8 +27,18 @@ suite('json', () => {
     return jp(tokenizer.next.bind(tokenizer))
   })
 
-  // benchmark('nearley', () => {
-  // })
+  const nearley = require('nearley')
+  let jsonNearleyGrammar = require('./json/nearley')
+  benchmark('nearley', () => {
+    let parser = new nearley.Parser(jsonNearleyGrammar)
+    tokenizer.reset(jsonFile)
+    let names = []
+    var tok
+    while ((tok = tokenizer.next()).type !== '$') {
+      names.push(tok.type)
+    }
+    parser.feed(names)
+  })
 
   const chev = require('./json/chevrotain')
   benchmark('chevrotain', () => {
