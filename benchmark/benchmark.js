@@ -12,7 +12,39 @@ function stringLexer(input) {
 }
 
 
-// TODO benchmark compilation
+suite('compile JSON', () => {
+
+  const gilbert = require('../gilbert')
+  const jsonGrammar = require('../test/json').grammar
+
+  const states = require('../gilbert/states')
+  benchmark('generateStates', () => {
+    states.generateStates(jsonGrammar)
+  })
+
+  const lr1 = require('../gilbert/lr1')
+  benchmark('lr1 + generateStates', () => {
+    lr1.compile(jsonGrammar)
+  })
+
+  // TODO GLR compiler
+
+})
+
+
+suite('compile tosh', () => {
+
+  const gilbert = require('../gilbert')
+  const toshGrammar = gilbert.Grammar.fromNearley(require('../test/tosh'))
+
+  const states = require('../gilbert/states')
+  benchmark('generateStates', () => {
+    states.generateStates(toshGrammar)
+  })
+
+  // TODO GLR compiler
+
+})
 
 
 suite('json', () => {
@@ -66,7 +98,7 @@ suite('json', () => {
 suite('tosh', () => {
 
   let toshFile = 'set foo to 2 * e^ of ( foo * -0.05 + 0.5) * (1 - e ^ of (foo * -0.05 + 0.5))'
-  let toshNearleyGrammar = require('../test/tosh')
+  const toshNearleyGrammar = require('../test/tosh')
 
   const gilbert = require('../gilbert')
   let toshGrammar = gilbert.Grammar.fromNearley(toshNearleyGrammar)

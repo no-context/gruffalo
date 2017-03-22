@@ -351,7 +351,7 @@ function compile(grammar) {
       count++
     }
   }
-  process.stderr.write(count + ' functions generated\n')
+  // process.stderr.write(count + ' functions generated\n')
 
   source += `
   var TOKEN
@@ -379,7 +379,7 @@ function compile(grammar) {
   source += '}\n'
   source += '})\n'
 
-  process.stderr.write(source.length + ' bytes\n')
+  // process.stderr.write(source.length + ' bytes\n')
   // console.log(source)
   return source
 }
